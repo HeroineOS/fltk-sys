@@ -4,7 +4,7 @@
 //
 // Copyright 2010-2024 by Bill Spitzak and others.
 // Modified 2026-10-01 by the HeroineOS project (https://github.com/HeroineOS/fltk-sys):
-// wlr-layer-shell support.
+// wlr-layer-shell support, touchscreen input.
 //
 // This library is free software. Distribution and use rights are outlined in
 // the file "COPYING" which should have been included with this file.  If this
@@ -65,6 +65,12 @@ public:
     char *name;
     struct zwp_text_input_v3 *text_input;
     struct gtk_shell1 *gtk_shell;
+    // touchscreen: the first finger down acts as mouse button 1
+    struct wl_touch *wl_touch;
+    bool touching;
+    int32_t touch_id;
+    struct wl_surface *touch_surface;
+    struct wl_surface *saved_pointer_focus; // restored when the finger is lifted
   };
   struct output { // one record for each screen
     uint32_t id;

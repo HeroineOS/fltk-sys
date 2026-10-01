@@ -3,7 +3,7 @@
 //
 // Copyright 1998-2024 by Bill Spitzak and others.
 // Modified 2026-10-01 by the HeroineOS project (https://github.com/HeroineOS/fltk-sys):
-// wlr-layer-shell support.
+// wlr-layer-shell support, touchscreen input.
 //
 // This library is free software. Distribution and use rights are outlined in
 // the file "COPYING" which should have been included with this file.  If this
@@ -377,6 +377,105 @@ static struct wl_pointer_listener pointer_listener = {
   pointer_motion,
   pointer_button,
   pointer_axis
+};
+
+
+// Touchscreen support: the first finger touching an FLTK window is processed
+// as the left mouse button (push, drag, release), as X11 servers do for
+// applications that don't handle touch events. Other fingers are ignored.
+
+static void touch_end(struct Fl_Wayland_Screen_Driver::seat *seat, bool cancelled) {
+  Fl_Window *win = Fl_Wayland_Window_Driver::surface_to_window(seat->touch_surface);
+  seat->touching = false;
+  seat->pointer_focus = seat->saved_pointer_focus;
+  Fl::e_state &= ~FL_BUTTON1;
+  if (!win) return;
+  win = win->top_window();
+  set_event_xy(win);
+  if (cancelled) { // the compositor took the touch sequence, e.g. for a gesture
+    Fl::pushed(NULL);
+  } else {
+    Fl::e_keysym = FL_Button + 1;
+    Fl::e_dx = Fl::e_dy = 0;
+    Fl::handle(FL_RELEASE, win);
+  }
+  // no pointer remains above the window once the finger is lifted
+  Fl::belowmouse(0);
+  Fl::handle(FL_LEAVE, win);
+}
+
+
+static void touch_down(void *data, struct wl_touch *wl_touch, uint32_t serial,
+                       uint32_t time, struct wl_surface *surface, int32_t id,
+                       wl_fixed_t x, wl_fixed_t y) {
+  struct Fl_Wayland_Screen_Driver::seat *seat = (struct Fl_Wayland_Screen_Driver::seat*)data;
+  if (seat->touching) return;
+  Fl_Window *win = event_coords_from_surface(surface, x, y);
+  if (!win) return;
+  seat->touching = true;
+  seat->touch_id = id;
+  seat->touch_surface = surface;
+  seat->saved_pointer_focus = seat->pointer_focus;
+  seat->pointer_focus = surface;
+  seat->serial = serial; // e.g., for menus opened by this touch
+  wld_event_time = time;
+  set_event_xy(win);
+  Fl::handle(FL_MOVE, win); // the widget under the finger becomes Fl::belowmouse()
+  Fl::e_state |= FL_BUTTON1;
+  Fl::e_keysym = FL_Button + 1;
+  Fl::e_dx = Fl::e_dy = 0;
+  checkdouble();
+  Fl::handle(FL_PUSH, win->top_window());
+}
+
+
+static void touch_up(void *data, struct wl_touch *wl_touch, uint32_t serial,
+                     uint32_t time, int32_t id) {
+  struct Fl_Wayland_Screen_Driver::seat *seat = (struct Fl_Wayland_Screen_Driver::seat*)data;
+  if (!seat->touching || id != seat->touch_id) return;
+  seat->serial = serial;
+  wld_event_time = time;
+  touch_end(seat, false);
+}
+
+
+static void touch_motion(void *data, struct wl_touch *wl_touch, uint32_t time,
+                         int32_t id, wl_fixed_t x, wl_fixed_t y) {
+  struct Fl_Wayland_Screen_Driver::seat *seat = (struct Fl_Wayland_Screen_Driver::seat*)data;
+  if (!seat->touching || id != seat->touch_id) return;
+  Fl_Window *win = event_coords_from_surface(seat->touch_surface, x, y);
+  if (!win) return;
+  wld_event_time = time;
+  set_event_xy(win);
+  Fl::handle(FL_MOVE, win); // becomes FL_DRAG, as button 1 is down
+}
+
+
+static void touch_frame(void *data, struct wl_touch *wl_touch) {}
+
+
+static void touch_cancel(void *data, struct wl_touch *wl_touch) {
+  struct Fl_Wayland_Screen_Driver::seat *seat = (struct Fl_Wayland_Screen_Driver::seat*)data;
+  if (seat->touching) touch_end(seat, true);
+}
+
+
+static void touch_shape(void *data, struct wl_touch *wl_touch, int32_t id,
+                        wl_fixed_t major, wl_fixed_t minor) {}
+
+
+static void touch_orientation(void *data, struct wl_touch *wl_touch, int32_t id,
+                              wl_fixed_t orientation) {}
+
+
+static struct wl_touch_listener touch_listener = {
+  touch_down,
+  touch_up,
+  touch_motion,
+  touch_frame,
+  touch_cancel,
+  touch_shape,
+  touch_orientation
 };
 
 
@@ -1065,6 +1164,15 @@ static void seat_capabilities(void *data, struct wl_seat *wl_seat, uint32_t capa
   } else if (!(capabilities & WL_SEAT_CAPABILITY_POINTER) && seat->wl_pointer) {
     wl_pointer_release(seat->wl_pointer);
     seat->wl_pointer = NULL;
+  }
+
+  if ((capabilities & WL_SEAT_CAPABILITY_TOUCH) && !seat->wl_touch) {
+    seat->wl_touch = wl_seat_get_touch(wl_seat);
+    wl_touch_add_listener(seat->wl_touch, &touch_listener, seat);
+  } else if (!(capabilities & WL_SEAT_CAPABILITY_TOUCH) && seat->wl_touch) {
+    if (seat->touching) touch_end(seat, true);
+    wl_touch_release(seat->wl_touch);
+    seat->wl_touch = NULL;
   }
 
   bool have_keyboard = seat->xkb_context && (capabilities & WL_SEAT_CAPABILITY_KEYBOARD);
