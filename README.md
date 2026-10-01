@@ -1,3 +1,43 @@
+# fltk-sys (HeroineOS fork)
+
+This is [fltk-sys 1.5.23](https://crates.io/crates/fltk-sys/1.5.23) from
+[fltk-rs](https://github.com/fltk-rs/fltk-rs) with one addition: support for the
+**wlr-layer-shell** Wayland protocol, which desktop components (panels, docks, desktop
+widgets, notifications, wallpapers) use to sit on dedicated layers anchored to screen
+edges. Upstream FLTK declined it as Wayland-specific
+([fltk/fltk#593](https://github.com/fltk/fltk/issues/593)), so it lives here.
+
+Everything else is unchanged: same version number, same API plus three functions, so
+`fltk` from crates.io and other fltk crates build against it as usual. Apps opt in with:
+
+```toml
+[patch.crates-io]
+fltk-sys = { git = "https://github.com/HeroineOS/fltk-sys" }
+```
+
+Only apps that need layer-shell should do this; regular apps use stock fltk-sys.
+
+### What's added
+
+- FLTK (`cfltk/fltk`, Wayland backend only): `fl_wl_has_layer_shell()`,
+  `fl_wl_layer_window()`, `fl_wl_layer_margins()` in `FL/wayland.H` (documented
+  there). A window marked before `show()` becomes a layer surface when the compositor
+  supports the protocol, and a regular window otherwise. Its menus and tooltips work
+  (they become popups of the layer surface). Borderless windows also get an
+  `app_id`, like decorated ones already did.
+- cfltk: `Fl_wl_has_layer_shell`, `Fl_Window_wl_layer_window`, `Fl_Window_wl_layer_margins`
+  (no-ops returning 0 without the Wayland backend).
+- Rust (`src/window.rs`): bindings for those three functions.
+- `cfltk/fltk/src/drivers/Wayland/wlr-layer-shell-unstable-v1.xml`, the protocol
+  (© 2017 Drew DeVault, see its license header), as wayland-protocols doesn't ship it.
+
+Modified FLTK files carry a notice, as FLTK's license (LGPL with exceptions) asks.
+Requires the `use-wayland` feature and the usual Wayland build dependencies.
+
+The original README follows.
+
+---
+
 # fltk-sys
 
 Raw bindings for FLTK. These are generated using bindgen on the cfltk headers.
