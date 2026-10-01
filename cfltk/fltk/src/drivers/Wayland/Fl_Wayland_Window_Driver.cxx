@@ -1568,6 +1568,9 @@ void Fl_Wayland_Window_Driver::makeWindow()
     new_window->xdg_toplevel = xdg_surface_get_toplevel(new_window->xdg_surface);
     xdg_toplevel_add_listener(new_window->xdg_toplevel, &xdg_toplevel_listener, new_window);
     if (pWindow->label()) xdg_toplevel_set_title(new_window->xdg_toplevel, pWindow->label());
+    // as for decorated windows, lets compositors identify the application
+    xdg_toplevel_set_app_id(new_window->xdg_toplevel,
+                            pWindow->xclass() ? pWindow->xclass() : get_prog_name());
     wl_surface_commit(new_window->wl_surface);
     pWindow->border(0);
   }
