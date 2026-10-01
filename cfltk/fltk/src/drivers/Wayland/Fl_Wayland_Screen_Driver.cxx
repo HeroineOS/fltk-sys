@@ -2,6 +2,8 @@
 // Implementation of Wayland Screen interface
 //
 // Copyright 1998-2024 by Bill Spitzak and others.
+// Modified 2026-10-01 by the HeroineOS project (https://github.com/HeroineOS/fltk-sys):
+// wlr-layer-shell support.
 //
 // This library is free software. Distribution and use rights are outlined in
 // the file "COPYING" which should have been included with this file.  If this
@@ -40,6 +42,10 @@
 #include <xkbcommon/xkbcommon-compose.h>
 #include "text-input-client-protocol.h"
 #include "gtk-shell-client-protocol.h"
+// the protocol names an argument 'namespace', a C++ keyword
+#define namespace name_space
+#include "wlr-layer-shell-client-protocol.h"
+#undef namespace
 #include <assert.h>
 #include <sys/mman.h>
 #include <poll.h>
@@ -1315,6 +1321,11 @@ static void registry_handle_global(void *user_data, struct wl_registry *wl_regis
     scr_driver->text_input_base = (struct zwp_text_input_manager_v3 *)
       wl_registry_bind(wl_registry, id, &zwp_text_input_manager_v3_interface, 1);
 //printf("scr_driver->text_input_base=%p version=%d\n",scr_driver->text_input_base,version);
+
+  } else if (strcmp(interface, zwlr_layer_shell_v1_interface.name) == 0) {
+    // version 4 adds on-demand keyboard focus, which is used if available
+    scr_driver->layer_shell = (struct zwlr_layer_shell_v1 *)
+      wl_registry_bind(wl_registry, id, &zwlr_layer_shell_v1_interface, version < 4 ? version : 4);
   }
 }
 
@@ -1382,6 +1393,7 @@ Fl_Wayland_Screen_Driver::Fl_Wayland_Screen_Driver() : Fl_Unix_Screen_Driver() {
   libdecor_context = NULL;
   seat = NULL;
   text_input_base = NULL;
+  layer_shell = NULL;
   reset_cursor();
   wl_registry = NULL;
 }
@@ -1451,6 +1463,10 @@ void Fl_Wayland_Screen_Driver::close_display() {
     disable_im();
     zwp_text_input_manager_v3_destroy(text_input_base);
     text_input_base = NULL;
+  }
+  if (layer_shell) {
+    zwlr_layer_shell_v1_destroy(layer_shell);
+    layer_shell = NULL;
   }
   while (wl_list_length(&outputs) > 0) {
     Fl_Wayland_Screen_Driver::output *output;

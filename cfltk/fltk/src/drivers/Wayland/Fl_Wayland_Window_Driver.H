@@ -2,6 +2,8 @@
 // Definition of Wayland window driver for the Fast Light Tool Kit (FLTK).
 //
 // Copyright 2010-2024 by Bill Spitzak and others.
+// Modified 2026-10-01 by the HeroineOS project (https://github.com/HeroineOS/fltk-sys):
+// wlr-layer-shell support.
 //
 // This library is free software. Distribution and use rights are outlined in
 // the file "COPYING" which should have been included with this file.  If this
@@ -62,6 +64,11 @@ private:
   Fl_Cursor standard_cursor_; // window's standard custom kind
   struct gl_start_support *gl_start_support_; // for support of gl_start/gl_finish
   bool is_popup_window_;
+  struct layer_data_type { // set by fl_wl_layer_window(), used when the window is shown
+    int layer, anchor, exclusive_zone, keyboard, screen;
+    int margin_top, margin_right, margin_bottom, margin_left;
+    char *name_space;
+  } *layer_data_;
 public:
   inline Fl_Cursor standard_cursor() { return standard_cursor_; };
   bool in_handle_configure; // distinguish OS and user window resize
@@ -88,7 +95,7 @@ public:
   cairo_rectangle_int_t *subRect() { return subRect_; } // getter
   void subRect(cairo_rectangle_int_t *r); // setter
   void checkSubwindowFrame();
-  enum kind {DECORATED, SUBWINDOW, POPUP, UNFRAMED};
+  enum kind {DECORATED, SUBWINDOW, POPUP, UNFRAMED, LAYER};
   struct xdg_toplevel *xdg_toplevel();
   Fl_Wayland_Window_Driver(Fl_Window*);
   virtual ~Fl_Wayland_Window_Driver();
@@ -145,6 +152,11 @@ public:
   bool process_menu_or_tooltip(struct wld_window *);
   static Fl_Window *previous_floatingtitle; // to support floating menuwindow w/ title
   void allow_expand_outside_parent() FL_OVERRIDE { can_expand_outside_parent_ = true; }
+  // wlr-layer-shell support, see fl_wl_layer_window()
+  void layer_window(int layer, int anchor, int exclusive_zone, int keyboard, int screen,
+                    const char *name_space);
+  void layer_margins(int top, int right, int bottom, int left);
+  bool make_layer_surface(struct wld_window *);
 };
 
 
@@ -161,6 +173,7 @@ struct wld_window {
     struct wl_subsurface *subsurface;
     struct xdg_popup *xdg_popup;
     struct xdg_toplevel *xdg_toplevel;
+    struct zwlr_layer_surface_v1 *layer_surface; // when kind == LAYER
   };
   // non-null when using custom cursor
   struct Fl_Wayland_Window_Driver::custom_cursor *custom_cursor;

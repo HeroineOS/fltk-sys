@@ -2,6 +2,8 @@
 // Wayland/X11 hybrid platform header file for the Fast Light Tool Kit (FLTK).
 //
 // Copyright 1998-2022 by Bill Spitzak and others.
+// Modified 2026-10-01 by the HeroineOS project (https://github.com/HeroineOS/fltk-sys):
+// wlr-layer-shell support.
 //
 // This library is free software. Distribution and use rights are outlined in
 // the file "COPYING" which should have been included with this file.  If this
@@ -48,6 +50,36 @@ extern FL_EXPORT int fl_wl_buffer_scale(Fl_Window *window);
 typedef void *EGLContext;
 /** Returns the EGLContext corresponding to the given GLContext */
 extern FL_EXPORT EGLContext fl_wl_glcontext(GLContext rc);
+
+/** Layers of the wlr-layer-shell protocol, bottom to top.
+ \see fl_wl_layer_window() */
+enum Fl_Wl_Layer {
+  FL_WL_LAYER_BACKGROUND = 0, ///< wallpapers
+  FL_WL_LAYER_BOTTOM = 1,     ///< below windows: desktop widgets
+  FL_WL_LAYER_TOP = 2,        ///< above windows: panels, docks
+  FL_WL_LAYER_OVERLAY = 3     ///< above everything, even fullscreen windows: OSDs, lock screens
+};
+/** Screen edges a layer-shell window is anchored to; combine with '|'.
+ \see fl_wl_layer_window() */
+enum Fl_Wl_Anchor {
+  FL_WL_ANCHOR_TOP = 1,
+  FL_WL_ANCHOR_BOTTOM = 2,
+  FL_WL_ANCHOR_LEFT = 4,
+  FL_WL_ANCHOR_RIGHT = 8
+};
+/** Whether a layer-shell window receives keyboard input.
+ \see fl_wl_layer_window() */
+enum Fl_Wl_Keyboard {
+  FL_WL_KEYBOARD_NONE = 0,      ///< never (panels that are only clicked)
+  FL_WL_KEYBOARD_EXCLUSIVE = 1, ///< always, while the window is shown (launchers, lock screens)
+  FL_WL_KEYBOARD_ON_DEMAND = 2  ///< like a regular window: when clicked or focused
+};
+extern FL_EXPORT int fl_wl_has_layer_shell();
+extern FL_EXPORT void fl_wl_layer_window(Fl_Window *win, enum Fl_Wl_Layer layer, int anchor,
+                                         int exclusive_zone, enum Fl_Wl_Keyboard keyboard,
+                                         int screen, const char *name_space);
+extern FL_EXPORT void fl_wl_layer_margins(Fl_Window *win, int top, int right, int bottom,
+                                          int left);
 
 #ifndef FL_DOXYGEN
 

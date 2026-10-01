@@ -2,6 +2,8 @@
 // Implementation of the Wayland window driver.
 //
 // Copyright 1998-2026 by Bill Spitzak and others.
+// Modified 2026-10-01 by the HeroineOS project (https://github.com/HeroineOS/fltk-sys):
+// wlr-layer-shell support.
 //
 // This library is free software. Distribution and use rights are outlined in
 // the file "COPYING" which should have been included with this file.  If this
@@ -19,10 +21,15 @@
 #include "Fl_Wayland_Screen_Driver.H"
 #include "Fl_Wayland_Graphics_Driver.H"
 #include <FL/filename.H>
+#include <FL/fl_string_functions.h>
 #include <wayland-cursor.h>
 #include "../../../libdecor/build/fl_libdecor.h"
 #include "xdg-shell-client-protocol.h"
 #include "gtk-shell-client-protocol.h"
+// the protocol names an argument 'namespace', a C++ keyword
+#define namespace name_space
+#include "wlr-layer-shell-client-protocol.h"
+#undef namespace
 #include <pango/pangocairo.h>
 #include <FL/Fl_Overlay_Window.H>
 #include <FL/Fl_Tooltip.H>
@@ -72,6 +79,7 @@ Fl_Wayland_Window_Driver::Fl_Wayland_Window_Driver(Fl_Window *win) : Fl_Window_D
   subRect_ = NULL;
   is_popup_window_ = false;
   can_expand_outside_parent_ = false;
+  layer_data_ = NULL;
 }
 
 
@@ -112,6 +120,10 @@ Fl_Wayland_Window_Driver::~Fl_Wayland_Window_Driver()
   if (subRect_) delete subRect_;
   if (gl_start_support_) { // occurs only if gl_start/gl_finish was used
     gl_plugin()->destroy(gl_start_support_);
+  }
+  if (layer_data_) {
+    free(layer_data_->name_space);
+    delete layer_data_;
   }
 }
 
@@ -478,6 +490,10 @@ void Fl_Wayland_Window_Driver::hide() {
       if (wld_win->kind == UNFRAMED && wld_win->xdg_toplevel) {
         xdg_toplevel_destroy(wld_win->xdg_toplevel);
         wld_win->xdg_toplevel = NULL;
+      }
+      if (wld_win->kind == LAYER && wld_win->layer_surface) {
+        zwlr_layer_surface_v1_destroy(wld_win->layer_surface);
+        wld_win->layer_surface = NULL;
       }
       if (wld_win->xdg_surface) {
         xdg_surface_destroy(wld_win->xdg_surface);
@@ -1144,6 +1160,49 @@ static const struct xdg_toplevel_listener xdg_toplevel_listener = {
 };
 
 
+static void layer_surface_configure(void *data, struct zwlr_layer_surface_v1 *layer_surface,
+                                    uint32_t serial, uint32_t width, uint32_t height)
+{
+  // runs for layer-shell surfaces: does what xdg_toplevel_configure() and
+  // xdg_surface_configure() do for borderless top-level windows
+  struct wld_window *window = (struct wld_window*)data;
+  zwlr_layer_surface_v1_ack_configure(layer_surface, serial);
+  Fl_Wayland_Window_Driver *driver = Fl_Wayland_Window_Driver::driver(window->fl_win);
+  float f = Fl::screen_scale(window->fl_win->screen_num());
+  // a size of 0 leaves that dimension to the client
+  int W = width ? int(ceil(width / f)) : window->fl_win->w();
+  int H = height ? int(ceil(height / f)) : window->fl_win->h();
+  if (window->buffer && (W != window->configured_width || H != window->configured_height)) {
+    Fl_Wayland_Graphics_Driver::buffer_release(window);
+  }
+  if (W != window->fl_win->w() || H != window->fl_win->h()) {
+    // e.g., a panel anchored to opposite edges gets its length from the compositor
+    driver->in_handle_configure = true;
+    window->fl_win->resize(0, 0, W, H);
+    driver->in_handle_configure = false;
+  }
+  window->configured_width = W;
+  window->configured_height = H;
+  driver->wait_for_expose_value = 0;
+  driver->flush();
+  window->fl_win->clear_damage();
+}
+
+
+static void layer_surface_closed(void *data, struct zwlr_layer_surface_v1 *layer_surface)
+{
+  // the compositor won't show this surface anymore (e.g., its output was removed)
+  struct wld_window *window = (struct wld_window*)data;
+  Fl::handle(FL_CLOSE, window->fl_win);
+}
+
+
+static const struct zwlr_layer_surface_v1_listener layer_surface_listener = {
+  .configure = layer_surface_configure,
+  .closed = layer_surface_closed,
+};
+
+
 struct win_positioner {
   struct wld_window *window;
   int x, y;
@@ -1390,6 +1449,10 @@ bool Fl_Wayland_Window_Driver::process_menu_or_tooltip(struct wld_window *new_wi
   }
   new_window->xdg_popup = xdg_surface_get_popup(new_window->xdg_surface,
                                                 parent_xdg, positioner);
+  if (parent_xid->kind == LAYER && parent_xid->layer_surface) {
+    // a layer surface has no xdg_surface: its popups get their parent this way
+    zwlr_layer_surface_v1_get_popup(parent_xid->layer_surface, new_window->xdg_popup);
+  }
   struct win_positioner *win_pos = new struct win_positioner;
   win_pos->window = new_window;
   win_pos->x = popup_x;
@@ -1452,6 +1515,9 @@ void Fl_Wayland_Window_Driver::makeWindow()
 
   if (popup_window()) { // a menu window or tooltip
     is_floatingtitle = process_menu_or_tooltip(new_window);
+
+  } else if (layer_data_ && !pWindow->parent() && scr_driver->layer_shell) {
+    make_layer_surface(new_window); // a panel, desktop widget, etc. (wlr-layer-shell)
 
   } else if (pWindow->border() && !pWindow->parent() ) { // a decorated window
     new_window->kind = DECORATED;
@@ -1894,6 +1960,18 @@ void Fl_Wayland_Window_Driver::resize(int X, int Y, int W, int H) {
       }
       xdg_surface_set_window_geometry(fl_win->xdg_surface, 0, 0, W, H);
       //printf("xdg_surface_set_window_geometry: %dx%d\n",W, H);
+    } else if (fl_win->kind == LAYER && fl_win->layer_surface) { // a layer-shell surface
+      if (!pWindow->as_gl_window()) Fl_Wayland_Graphics_Driver::buffer_release(fl_win);
+      fl_win->configured_width = W;
+      fl_win->configured_height = H;
+      if (!in_handle_configure) { // the compositor answers with a configure event
+        int a = layer_data_->anchor;
+        bool stretch_w = (a & FL_WL_ANCHOR_LEFT) && (a & FL_WL_ANCHOR_RIGHT);
+        bool stretch_h = (a & FL_WL_ANCHOR_TOP) && (a & FL_WL_ANCHOR_BOTTOM);
+        zwlr_layer_surface_v1_set_size(fl_win->layer_surface, stretch_w ? 0 : int(W * f),
+                                       stretch_h ? 0 : int(H * f));
+        wl_surface_commit(fl_win->wl_surface);
+      }
     }
   } else if (!in_handle_configure && xdg_toplevel() && Fl::e_state == FL_BUTTON1) {
     // Wayland doesn't provide a way for the app to set the window position on screen.
@@ -2176,4 +2254,147 @@ void Fl_Wayland_Window_Driver::un_maximize() {
   struct wld_window *xid = (struct wld_window *)Fl_X::flx(pWindow)->xid;
   if (xid->kind == DECORATED) libdecor_frame_unset_maximized(xid->frame);
   else Fl_Window_Driver::un_maximize();
+}
+
+
+/** Returns whether the compositor supports the wlr-layer-shell protocol.
+ That protocol lets an application place desktop components (panels,
+ docks, desktop widgets, notifications, wallpapers) on dedicated layers,
+ anchored to screen edges, outside the regular window stack. It is
+ implemented by wlroots-based compositors (e.g., Sway), KDE Plasma and
+ others, but not by GNOME's Mutter.
+
+ Opens the display if necessary. Returns 0 when FLTK doesn't run its
+ Wayland backend.
+ \see fl_wl_layer_window()
+ */
+int fl_wl_has_layer_shell() {
+  if (!fl_wl_display()) fl_open_display();
+  if (!fl_wl_display()) return 0; // running on X11
+  Fl_Wayland_Screen_Driver *scr_driver = (Fl_Wayland_Screen_Driver*)Fl::screen_driver();
+  return scr_driver->layer_shell != NULL;
+}
+
+
+/** Makes \p win a layer-shell surface instead of a regular window.
+ Call this before \p win is shown, on a top-level window. When the window is
+ shown and the compositor supports wlr-layer-shell (see fl_wl_has_layer_shell()),
+ it appears on \p layer, outside the window stack, without decorations.
+ Otherwise, and when FLTK doesn't run its Wayland backend, this has no effect
+ and \p win is shown as a regular window.
+
+ The window keeps its size, except along a dimension anchored to both opposite
+ edges, where the compositor gives it the full length of the screen (a panel
+ anchored to \c FL_WL_ANCHOR_LEFT \c | \c FL_WL_ANCHOR_RIGHT spans the screen
+ width). With no anchor, the window is centered. Wayland applications can't
+ choose their position otherwise; use fl_wl_layer_margins() to offset the
+ window from the edges it is anchored to.
+
+ \param win    a top-level window, not shown yet
+ \param layer  the layer to put the window on
+ \param anchor screen edges the window sticks to, an OR'ed combination of
+               \c FL_WL_ANCHOR_* values, or 0
+ \param exclusive_zone  space in FLTK units the compositor reserves along the
+        anchored edge so other windows don't cover the window (e.g., the height
+        of a panel); 0: none, the window can be covered or covers others;
+        -1: the window ignores space reserved by other layer-shell windows
+ \param keyboard whether the window receives keyboard input. \c FL_WL_KEYBOARD_ON_DEMAND
+        requires version 4 of the protocol and falls back to
+        \c FL_WL_KEYBOARD_NONE with older compositors.
+ \param screen  the screen to show the window on, or -1 to let the compositor
+        choose (usually the screen with focus)
+ \param name_space a name the compositor can use to identify the window's
+        role (e.g., "panel", "notifications"), or NULL
+ \see fl_wl_layer_margins()
+ */
+void fl_wl_layer_window(Fl_Window *win, enum Fl_Wl_Layer layer, int anchor, int exclusive_zone,
+                        enum Fl_Wl_Keyboard keyboard, int screen, const char *name_space) {
+  if (!fl_wl_display()) fl_open_display();
+  if (!fl_wl_display() || win->parent() || win->shown()) return;
+  Fl_Wayland_Window_Driver::driver(win)->layer_window(layer, anchor, exclusive_zone, keyboard,
+                                                      screen, name_space);
+}
+
+
+/** Sets the distance in FLTK units between a layer-shell window and the
+ screen edges it is anchored to. Without anchor to an edge, the corresponding
+ margin is ignored. Call this after fl_wl_layer_window() and before the window
+ is shown.
+ \see fl_wl_layer_window()
+ */
+void fl_wl_layer_margins(Fl_Window *win, int top, int right, int bottom, int left) {
+  if (!fl_wl_display() || win->shown()) return;
+  Fl_Wayland_Window_Driver::driver(win)->layer_margins(top, right, bottom, left);
+}
+
+
+void Fl_Wayland_Window_Driver::layer_window(int layer, int anchor, int exclusive_zone,
+                                            int keyboard, int screen, const char *name_space) {
+  if (!layer_data_) {
+    layer_data_ = new layer_data_type;
+    layer_data_->margin_top = layer_data_->margin_right = 0;
+    layer_data_->margin_bottom = layer_data_->margin_left = 0;
+    layer_data_->name_space = NULL;
+  }
+  layer_data_->layer = layer;
+  layer_data_->anchor = anchor;
+  layer_data_->exclusive_zone = exclusive_zone;
+  layer_data_->keyboard = keyboard;
+  layer_data_->screen = screen;
+  free(layer_data_->name_space);
+  layer_data_->name_space = name_space ? fl_strdup(name_space) : NULL;
+}
+
+
+void Fl_Wayland_Window_Driver::layer_margins(int top, int right, int bottom, int left) {
+  if (!layer_data_) return;
+  layer_data_->margin_top = top;
+  layer_data_->margin_right = right;
+  layer_data_->margin_bottom = bottom;
+  layer_data_->margin_left = left;
+}
+
+
+bool Fl_Wayland_Window_Driver::make_layer_surface(struct wld_window *new_window) {
+  Fl_Wayland_Screen_Driver *scr_driver = (Fl_Wayland_Screen_Driver*)Fl::screen_driver();
+  struct wl_output *wl_output = NULL;
+  if (layer_data_->screen >= 0) {
+    struct Fl_Wayland_Screen_Driver::output *output = screen_num_to_output(layer_data_->screen);
+    if (output) {
+      wl_output = output->wl_output;
+      pWindow->screen_num(layer_data_->screen); // for the scaling factor
+    }
+  }
+  new_window->kind = LAYER;
+  new_window->layer_surface = zwlr_layer_shell_v1_get_layer_surface(scr_driver->layer_shell,
+          new_window->wl_surface, wl_output, layer_data_->layer,
+          layer_data_->name_space ? layer_data_->name_space : get_prog_name());
+  if (!new_window->layer_surface) return false;
+  zwlr_layer_surface_v1_add_listener(new_window->layer_surface, &layer_surface_listener,
+                                     new_window);
+  float f = Fl::screen_scale(pWindow->screen_num());
+  int a = layer_data_->anchor;
+  // a dimension anchored to both opposite edges is set by the compositor
+  bool stretch_w = (a & FL_WL_ANCHOR_LEFT) && (a & FL_WL_ANCHOR_RIGHT);
+  bool stretch_h = (a & FL_WL_ANCHOR_TOP) && (a & FL_WL_ANCHOR_BOTTOM);
+  zwlr_layer_surface_v1_set_size(new_window->layer_surface, stretch_w ? 0 : int(pWindow->w() * f),
+                                 stretch_h ? 0 : int(pWindow->h() * f));
+  zwlr_layer_surface_v1_set_anchor(new_window->layer_surface, a);
+  int zone = layer_data_->exclusive_zone;
+  zwlr_layer_surface_v1_set_exclusive_zone(new_window->layer_surface, zone > 0 ? int(zone * f) : zone);
+  zwlr_layer_surface_v1_set_margin(new_window->layer_surface,
+                                   int(layer_data_->margin_top * f),
+                                   int(layer_data_->margin_right * f),
+                                   int(layer_data_->margin_bottom * f),
+                                   int(layer_data_->margin_left * f));
+  int keyboard = layer_data_->keyboard;
+  if (keyboard == FL_WL_KEYBOARD_ON_DEMAND &&
+      zwlr_layer_shell_v1_get_version(scr_driver->layer_shell) <
+      ZWLR_LAYER_SURFACE_V1_KEYBOARD_INTERACTIVITY_ON_DEMAND_SINCE_VERSION) {
+    keyboard = FL_WL_KEYBOARD_NONE;
+  }
+  zwlr_layer_surface_v1_set_keyboard_interactivity(new_window->layer_surface, keyboard);
+  wl_surface_commit(new_window->wl_surface); // the compositor answers with a configure event
+  pWindow->border(0);
+  return true;
 }

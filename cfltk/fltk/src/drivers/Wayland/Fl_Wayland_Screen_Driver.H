@@ -3,6 +3,8 @@
 // for the Fast Light Tool Kit (FLTK).
 //
 // Copyright 2010-2024 by Bill Spitzak and others.
+// Modified 2026-10-01 by the HeroineOS project (https://github.com/HeroineOS/fltk-sys):
+// wlr-layer-shell support.
 //
 // This library is free software. Distribution and use rights are outlined in
 // the file "COPYING" which should have been included with this file.  If this
@@ -104,6 +106,7 @@ public:
   struct libdecor *libdecor_context;
   struct xdg_wm_base *xdg_wm_base;
   struct zwp_text_input_manager_v3 *text_input_base;
+  struct zwlr_layer_shell_v1 *layer_shell; // NULL if the compositor lacks wlr-layer-shell
 
 // constructor
   Fl_Wayland_Screen_Driver();

@@ -1,6 +1,9 @@
 #
 # CMakeLists.txt to build the FLTK library using CMake (www.cmake.org)
 #
+# Modified 2026-10-01 by the HeroineOS project (https://github.com/HeroineOS/fltk-sys):
+# wlr-layer-shell support.
+#
 # Copyright 1998-2025 by Bill Spitzak and others.
 #
 # This library is free software. Distribution and use rights are outlined in
@@ -793,6 +796,18 @@ if(UNIX AND FLTK_BACKEND_WAYLAND)
   )
   list(APPEND STATIC_FILES "text-input-protocol.c")
   list(APPEND SHARED_FILES "text-input-protocol.c")
+
+  # wlr-layer-shell is not part of wayland-protocols; its XML file is bundled.
+  set(INFILE ${FLTK_SOURCE_DIR}/src/drivers/Wayland/wlr-layer-shell-unstable-v1.xml)
+  add_custom_command(
+    OUTPUT wlr-layer-shell-protocol.c wlr-layer-shell-client-protocol.h
+    COMMAND wayland-scanner private-code  ${INFILE} wlr-layer-shell-protocol.c
+    COMMAND wayland-scanner client-header ${INFILE} wlr-layer-shell-client-protocol.h
+    DEPENDS ${INFILE}
+    VERBATIM
+  )
+  list(APPEND STATIC_FILES "wlr-layer-shell-protocol.c")
+  list(APPEND SHARED_FILES "wlr-layer-shell-protocol.c")
 
   if(STOP_REQUIRED)
     message(FATAL_ERROR "*** Terminating: one or more required file(s) were not found. ***")
