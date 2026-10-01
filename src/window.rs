@@ -772,6 +772,29 @@ extern "C" {
 extern "C" {
     pub fn Fl_Window_os_id(self_: *mut Fl_Window) -> usize;
 }
+extern "C" {
+    pub fn Fl_wl_has_layer_shell() -> ::core::ffi::c_int;
+}
+extern "C" {
+    pub fn Fl_Window_wl_layer_window(
+        self_: *mut Fl_Window,
+        layer: ::core::ffi::c_int,
+        anchor: ::core::ffi::c_int,
+        exclusive_zone: ::core::ffi::c_int,
+        keyboard: ::core::ffi::c_int,
+        screen: ::core::ffi::c_int,
+        name_space: *const ::core::ffi::c_char,
+    );
+}
+extern "C" {
+    pub fn Fl_Window_wl_layer_margins(
+        self_: *mut Fl_Window,
+        top: ::core::ffi::c_int,
+        right: ::core::ffi::c_int,
+        bottom: ::core::ffi::c_int,
+        left: ::core::ffi::c_int,
+    );
+}
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct Fl_Single_Window {

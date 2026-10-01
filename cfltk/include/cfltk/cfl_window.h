@@ -82,6 +82,16 @@ void Fl_Window_allow_expand_outside_parent(Fl_Window *self);
 
 uintptr_t Fl_Window_os_id(Fl_Window *self);
 
+/* wlr-layer-shell (Wayland); no-ops returning 0 on other platforms */
+int Fl_wl_has_layer_shell(void);
+
+void Fl_Window_wl_layer_window(Fl_Window *self, int layer, int anchor,
+                               int exclusive_zone, int keyboard, int screen,
+                               const char *name_space);
+
+void Fl_Window_wl_layer_margins(Fl_Window *self, int top, int right,
+                                int bottom, int left);
+
 WIDGET_DECLARE(Fl_Single_Window)
 
 GROUP_DECLARE(Fl_Single_Window)

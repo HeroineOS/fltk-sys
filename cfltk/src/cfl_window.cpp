@@ -368,6 +368,36 @@ uintptr_t Fl_Window_os_id(Fl_Window *self) {
     return ret;
 }
 
+int Fl_wl_has_layer_shell(void) {
+#if defined(FLTK_USE_WAYLAND)
+    return fl_wl_has_layer_shell();
+#else
+    return 0;
+#endif
+}
+
+void Fl_Window_wl_layer_window(Fl_Window *self, int layer, int anchor,
+                               int exclusive_zone, int keyboard, int screen,
+                               const char *name_space) {
+#if defined(FLTK_USE_WAYLAND)
+    LOCK(fl_wl_layer_window(self, (enum Fl_Wl_Layer)layer, anchor,
+                            exclusive_zone, (enum Fl_Wl_Keyboard)keyboard,
+                            screen, name_space));
+#else
+    (void)self, (void)layer, (void)anchor, (void)exclusive_zone,
+        (void)keyboard, (void)screen, (void)name_space;
+#endif
+}
+
+void Fl_Window_wl_layer_margins(Fl_Window *self, int top, int right,
+                                int bottom, int left) {
+#if defined(FLTK_USE_WAYLAND)
+    LOCK(fl_wl_layer_margins(self, top, right, bottom, left));
+#else
+    (void)self, (void)top, (void)right, (void)bottom, (void)left;
+#endif
+}
+
 WINDOW_CLASS(Fl_Single_Window)
 
 WIDGET_DEFINE(Fl_Single_Window)
