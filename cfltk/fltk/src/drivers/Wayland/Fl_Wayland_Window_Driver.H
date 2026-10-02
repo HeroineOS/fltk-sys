@@ -3,7 +3,7 @@
 //
 // Copyright 2010-2024 by Bill Spitzak and others.
 // Modified 2026-10-01 by the HeroineOS project (https://github.com/HeroineOS/fltk-sys):
-// wlr-layer-shell support.
+// wlr-layer-shell support, transparent windows.
 //
 // This library is free software. Distribution and use rights are outlined in
 // the file "COPYING" which should have been included with this file.  If this
@@ -64,6 +64,7 @@ private:
   Fl_Cursor standard_cursor_; // window's standard custom kind
   struct gl_start_support *gl_start_support_; // for support of gl_start/gl_finish
   bool is_popup_window_;
+  bool transparent_; // set by fl_wl_transparent(): no opaque region
   struct layer_data_type { // set by fl_wl_layer_window(), used when the window is shown
     int layer, anchor, exclusive_zone, keyboard, screen;
     int margin_top, margin_right, margin_bottom, margin_left;
@@ -157,6 +158,8 @@ public:
                     const char *name_space);
   void layer_margins(int top, int right, int bottom, int left);
   bool make_layer_surface(struct wld_window *);
+  // see fl_wl_transparent()
+  void transparent() { transparent_ = true; }
 };
 
 

@@ -398,6 +398,22 @@ void Fl_Window_wl_layer_margins(Fl_Window *self, int top, int right,
 #endif
 }
 
+void Fl_Window_wl_transparent(Fl_Window *self) {
+#if defined(FLTK_USE_WAYLAND)
+    LOCK(fl_wl_transparent(self));
+#else
+    (void)self;
+#endif
+}
+
+void Fl_wl_clear_rect(int x, int y, int w, int h) {
+#if defined(FLTK_USE_WAYLAND)
+    fl_wl_clear_rect(x, y, w, h);
+#else
+    (void)x, (void)y, (void)w, (void)h;
+#endif
+}
+
 WINDOW_CLASS(Fl_Single_Window)
 
 WIDGET_DEFINE(Fl_Single_Window)

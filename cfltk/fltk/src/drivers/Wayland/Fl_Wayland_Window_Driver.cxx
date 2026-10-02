@@ -3,7 +3,7 @@
 //
 // Copyright 1998-2026 by Bill Spitzak and others.
 // Modified 2026-10-01 by the HeroineOS project (https://github.com/HeroineOS/fltk-sys):
-// wlr-layer-shell support.
+// wlr-layer-shell support, transparent windows.
 //
 // This library is free software. Distribution and use rights are outlined in
 // the file "COPYING" which should have been included with this file.  If this
@@ -80,6 +80,7 @@ Fl_Wayland_Window_Driver::Fl_Wayland_Window_Driver(Fl_Window *win) : Fl_Window_D
   is_popup_window_ = false;
   can_expand_outside_parent_ = false;
   layer_data_ = NULL;
+  transparent_ = false;
 }
 
 
@@ -1495,7 +1496,7 @@ void Fl_Wayland_Window_Driver::makeWindow()
   //Fl::warning("makeWindow:%p wayland-scale=%d user-scale=%.2f\n", pWindow, new_window->scale, Fl::screen_scale(0));
   wl_surface_add_listener(new_window->wl_surface, &surface_listener, new_window);
 
-  if (!shape()) { // rectangular FLTK windows are opaque
+  if (!shape() && !transparent_) { // rectangular FLTK windows are opaque
     struct wl_region *opaque = wl_compositor_create_region(scr_driver->wl_compositor);
     wl_region_add(opaque, 0, 0, 1000000, 1000000);
     wl_surface_set_opaque_region(new_window->wl_surface, opaque);
@@ -2328,6 +2329,40 @@ void fl_wl_layer_window(Fl_Window *win, enum Fl_Wl_Layer layer, int anchor, int 
 void fl_wl_layer_margins(Fl_Window *win, int top, int right, int bottom, int left) {
   if (!fl_wl_display() || win->shown()) return;
   Fl_Wayland_Window_Driver::driver(win)->layer_margins(top, right, bottom, left);
+}
+
+
+/** Lets \p win show what's behind it where it's drawn transparent with
+ fl_wl_clear_rect(). Without this, the compositor treats FLTK windows as
+ opaque. Has no effect when FLTK doesn't run its Wayland backend.
+ \see fl_wl_clear_rect()
+ */
+void fl_wl_transparent(Fl_Window *win) {
+  if (!fl_wl_display()) fl_open_display();
+  if (!fl_wl_display() || win->parent()) return;
+  Fl_Wayland_Window_Driver *dr = Fl_Wayland_Window_Driver::driver(win);
+  dr->transparent();
+  struct wld_window *xid = fl_wl_xid(win);
+  if (xid && xid->wl_surface) wl_surface_set_opaque_region(xid->wl_surface, NULL);
+}
+
+
+/** Makes a rectangle of the window being drawn fully transparent, e.g. to
+ erase the background before drawing parts of it. Call it in draw(), in a
+ window set up with fl_wl_transparent(). Clipping applies as for other
+ drawing; anti-aliased shapes drawn over the cleared area blend with what's
+ behind the window.
+ \see fl_wl_transparent()
+ */
+void fl_wl_clear_rect(int x, int y, int w, int h) {
+  if (!fl_wl_display() || w < 1 || h < 1) return;
+  cairo_t *cr = ((Fl_Wayland_Graphics_Driver*)fl_graphics_driver)->cr();
+  if (!cr) return;
+  cairo_save(cr);
+  cairo_set_operator(cr, CAIRO_OPERATOR_CLEAR);
+  cairo_rectangle(cr, x - 0.5, y - 0.5, w, h); // as Fl_Cairo_Graphics_Driver::rectf()
+  cairo_fill(cr);
+  cairo_restore(cr);
 }
 
 

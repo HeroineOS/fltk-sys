@@ -92,6 +92,10 @@ void Fl_Window_wl_layer_window(Fl_Window *self, int layer, int anchor,
 void Fl_Window_wl_layer_margins(Fl_Window *self, int top, int right,
                                 int bottom, int left);
 
+void Fl_Window_wl_transparent(Fl_Window *self);
+
+void Fl_wl_clear_rect(int x, int y, int w, int h);
+
 WIDGET_DECLARE(Fl_Single_Window)
 
 GROUP_DECLARE(Fl_Single_Window)
