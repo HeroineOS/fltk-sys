@@ -1,7 +1,8 @@
 # fltk-sys (HeroineOS fork)
 
 This is [fltk-sys 1.5.23](https://crates.io/crates/fltk-sys/1.5.23) from
-[fltk-rs](https://github.com/fltk-rs/fltk-rs) with two additions to FLTK's Wayland backend:
+[fltk-rs](https://github.com/fltk-rs/fltk-rs) with three additions to FLTK's Wayland backend:
+**transparent windows** (parts of a window can be see-through, with anti-aliased edges),
 **touchscreen input** (FLTK 1.4 ignores Wayland touch events; the first finger now acts
 as the left mouse button, like on X11), and support for the
 **wlr-layer-shell** Wayland protocol, which desktop components (panels, docks, desktop
@@ -9,7 +10,7 @@ widgets, notifications, wallpapers) use to sit on dedicated layers anchored to s
 edges. Upstream FLTK declined it as Wayland-specific
 ([fltk/fltk#593](https://github.com/fltk/fltk/issues/593)), so it lives here.
 
-Everything else is unchanged: same version number, same API plus three functions, so
+Everything else is unchanged: same version number, same API plus five functions, so
 `fltk` from crates.io and other fltk crates build against it as usual. Apps opt in with:
 
 ```toml
@@ -17,7 +18,7 @@ Everything else is unchanged: same version number, same API plus three functions
 fltk-sys = { git = "https://github.com/HeroineOS/fltk-sys" }
 ```
 
-Apps that need layer-shell or touchscreen input on Wayland should do this.
+Apps that need layer-shell, transparency or touchscreen input on Wayland should do this.
 
 ### What's added
 
@@ -30,9 +31,13 @@ Apps that need layer-shell or touchscreen input on Wayland should do this.
 - FLTK: touch events (`wl_touch`) are processed as mouse button 1: push, drag, release
   for the first finger; other fingers are ignored; a touch sequence cancelled by the
   compositor releases the button without a click.
-- cfltk: `Fl_wl_has_layer_shell`, `Fl_Window_wl_layer_window`, `Fl_Window_wl_layer_margins`
-  (no-ops returning 0 without the Wayland backend).
-- Rust (`src/window.rs`): bindings for those three functions.
+- FLTK: `fl_wl_transparent(win)` (no opaque region) and `fl_wl_clear_rect(x, y, w, h)`
+  (clears to fully transparent while drawing; shapes drawn over it blend with what's
+  behind the window), in `FL/wayland.H`.
+- cfltk: `Fl_wl_has_layer_shell`, `Fl_Window_wl_layer_window`, `Fl_Window_wl_layer_margins`,
+  `Fl_Window_wl_transparent`, `Fl_wl_clear_rect` (no-ops returning 0 without the Wayland
+  backend).
+- Rust (`src/window.rs`): bindings for those five functions.
 - `cfltk/fltk/src/drivers/Wayland/wlr-layer-shell-unstable-v1.xml`, the protocol
   (© 2017 Drew DeVault, see its license header), as wayland-protocols doesn't ship it.
 
