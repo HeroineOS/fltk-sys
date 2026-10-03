@@ -799,6 +799,16 @@ extern "C" {
     pub fn Fl_Window_wl_transparent(self_: *mut Fl_Window);
 }
 extern "C" {
+    pub fn Fl_Window_wl_popup(
+        self_: *mut Fl_Window,
+        parent: *mut Fl_Window,
+        x: ::core::ffi::c_int,
+        y: ::core::ffi::c_int,
+        w: ::core::ffi::c_int,
+        h: ::core::ffi::c_int,
+    );
+}
+extern "C" {
     pub fn Fl_wl_clear_rect(
         x: ::core::ffi::c_int,
         y: ::core::ffi::c_int,

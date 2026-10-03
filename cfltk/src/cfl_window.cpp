@@ -406,6 +406,15 @@ void Fl_Window_wl_transparent(Fl_Window *self) {
 #endif
 }
 
+void Fl_Window_wl_popup(Fl_Window *self, Fl_Window *parent, int x, int y, int w,
+                        int h) {
+#if defined(FLTK_USE_WAYLAND)
+    LOCK(fl_wl_popup(self, parent, x, y, w, h));
+#else
+    (void)self, (void)parent, (void)x, (void)y, (void)w, (void)h;
+#endif
+}
+
 void Fl_wl_clear_rect(int x, int y, int w, int h) {
 #if defined(FLTK_USE_WAYLAND)
     fl_wl_clear_rect(x, y, w, h);

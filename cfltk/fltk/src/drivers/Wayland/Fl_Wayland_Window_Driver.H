@@ -3,7 +3,7 @@
 //
 // Copyright 2010-2024 by Bill Spitzak and others.
 // Modified 2026-10-01 by the HeroineOS project (https://github.com/HeroineOS/fltk-sys):
-// wlr-layer-shell support, transparent windows.
+// wlr-layer-shell support, transparent windows, anchored popups.
 //
 // This library is free software. Distribution and use rights are outlined in
 // the file "COPYING" which should have been included with this file.  If this
@@ -65,6 +65,10 @@ private:
   struct gl_start_support *gl_start_support_; // for support of gl_start/gl_finish
   bool is_popup_window_;
   bool transparent_; // set by fl_wl_transparent(): no opaque region
+  struct popup_anchor_type { // set by fl_wl_popup()
+    Fl_Window *parent;
+    int x, y, w, h;
+  } *popup_anchor_;
   struct layer_data_type { // set by fl_wl_layer_window(), used when the window is shown
     int layer, anchor, exclusive_zone, keyboard, screen;
     int margin_top, margin_right, margin_bottom, margin_left;
@@ -160,6 +164,9 @@ public:
   bool make_layer_surface(struct wld_window *);
   // see fl_wl_transparent()
   void transparent() { transparent_ = true; }
+  // see fl_wl_popup()
+  void popup_anchor(Fl_Window *parent, int x, int y, int w, int h);
+  bool make_anchored_popup(struct wld_window *);
 };
 
 

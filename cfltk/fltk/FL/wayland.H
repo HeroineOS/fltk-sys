@@ -3,7 +3,7 @@
 //
 // Copyright 1998-2022 by Bill Spitzak and others.
 // Modified 2026-10-01 by the HeroineOS project (https://github.com/HeroineOS/fltk-sys):
-// wlr-layer-shell support, transparent windows.
+// wlr-layer-shell support, transparent windows, anchored popups.
 //
 // This library is free software. Distribution and use rights are outlined in
 // the file "COPYING" which should have been included with this file.  If this
@@ -82,6 +82,8 @@ extern FL_EXPORT void fl_wl_layer_margins(Fl_Window *win, int top, int right, in
                                           int left);
 extern FL_EXPORT void fl_wl_transparent(Fl_Window *win);
 extern FL_EXPORT void fl_wl_clear_rect(int x, int y, int w, int h);
+extern FL_EXPORT void fl_wl_popup(Fl_Window *win, Fl_Window *parent, int x, int y, int w,
+                                  int h);
 
 #ifndef FL_DOXYGEN
 

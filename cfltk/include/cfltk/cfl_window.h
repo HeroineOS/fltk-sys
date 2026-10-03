@@ -96,6 +96,9 @@ void Fl_Window_wl_transparent(Fl_Window *self);
 
 void Fl_wl_clear_rect(int x, int y, int w, int h);
 
+void Fl_Window_wl_popup(Fl_Window *self, Fl_Window *parent, int x, int y, int w,
+                        int h);
+
 WIDGET_DECLARE(Fl_Single_Window)
 
 GROUP_DECLARE(Fl_Single_Window)

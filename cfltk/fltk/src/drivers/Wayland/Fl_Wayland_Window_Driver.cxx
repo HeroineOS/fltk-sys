@@ -3,7 +3,7 @@
 //
 // Copyright 1998-2026 by Bill Spitzak and others.
 // Modified 2026-10-01 by the HeroineOS project (https://github.com/HeroineOS/fltk-sys):
-// wlr-layer-shell support, transparent windows.
+// wlr-layer-shell support, transparent windows, anchored popups.
 //
 // This library is free software. Distribution and use rights are outlined in
 // the file "COPYING" which should have been included with this file.  If this
@@ -81,6 +81,7 @@ Fl_Wayland_Window_Driver::Fl_Wayland_Window_Driver(Fl_Window *win) : Fl_Window_D
   can_expand_outside_parent_ = false;
   layer_data_ = NULL;
   transparent_ = false;
+  popup_anchor_ = NULL;
 }
 
 
@@ -1514,7 +1515,10 @@ void Fl_Wayland_Window_Driver::makeWindow()
               (Fl_Screen_Driver::transient_scale_parent->h() - pWindow->h())/2);
   }
 
-  if (popup_window()) { // a menu window or tooltip
+  if (popup_anchor_ && make_anchored_popup(new_window)) {
+    // a popup anchored to a widget of another window (see fl_wl_popup())
+
+  } else if (popup_window()) { // a menu window or tooltip
     is_floatingtitle = process_menu_or_tooltip(new_window);
 
   } else if (layer_data_ && !pWindow->parent() && scr_driver->layer_shell) {
@@ -1958,7 +1962,8 @@ void Fl_Wayland_Window_Driver::resize(int X, int Y, int W, int H) {
       fl_win->configured_width = W;
       fl_win->configured_height = H;
       W *= f; H *= f;
-      if (!pWindow->fullscreen_active()) {
+      // (A popup has no xdg_toplevel: the union holds its xdg_popup.)
+      if (fl_win->kind != POPUP && !pWindow->fullscreen_active()) {
         xdg_toplevel_set_min_size(fl_win->xdg_toplevel, W, H);
         xdg_toplevel_set_max_size(fl_win->xdg_toplevel, W, H);
       }
@@ -2329,6 +2334,89 @@ void fl_wl_layer_window(Fl_Window *win, enum Fl_Wl_Layer layer, int anchor, int 
 void fl_wl_layer_margins(Fl_Window *win, int top, int right, int bottom, int left) {
   if (!fl_wl_display() || win->shown()) return;
   Fl_Wayland_Window_Driver::driver(win)->layer_margins(top, right, bottom, left);
+}
+
+
+/** Makes \p win a popup of \p parent, placed below the rectangle
+ (\p x, \p y, \p w, \p h) of \p parent (e.g. the widget that opens it), or
+ above it if there's no room below. Call this before \p win is shown, best
+ while handling a mouse button press. The popup takes the keyboard while
+ shown, and the compositor closes it when the user clicks elsewhere: \p win
+ is then hidden, so it receives \c FL_HIDE. \p parent can be a regular or
+ a layer-shell window (a panel). Has no effect when FLTK doesn't run its
+ Wayland backend.
+ */
+void fl_wl_popup(Fl_Window *win, Fl_Window *parent, int x, int y, int w, int h) {
+  if (!fl_wl_display()) fl_open_display();
+  if (!fl_wl_display() || win->parent() || win->shown() || !parent) return;
+  Fl_Wayland_Window_Driver::driver(win)->popup_anchor(parent, x, y, w, h);
+}
+
+
+void Fl_Wayland_Window_Driver::popup_anchor(Fl_Window *parent, int x, int y, int w, int h) {
+  if (!popup_anchor_) popup_anchor_ = new popup_anchor_type;
+  popup_anchor_->parent = parent;
+  popup_anchor_->x = x;
+  popup_anchor_->y = y;
+  popup_anchor_->w = w;
+  popup_anchor_->h = h;
+}
+
+
+static void anchored_popup_configure(void *data, struct xdg_popup *xdg_popup, int32_t x,
+                                     int32_t y, int32_t width, int32_t height) {
+  struct win_positioner *win_pos = (struct win_positioner *)data;
+  Fl_Window_Driver::driver(win_pos->window->fl_win)->wait_for_expose_value = 0;
+}
+
+
+static const struct xdg_popup_listener anchored_popup_listener = {
+  .configure = anchored_popup_configure,
+  .popup_done = popup_done, // hides the window, as for menus
+};
+
+
+bool Fl_Wayland_Window_Driver::make_anchored_popup(struct wld_window *new_window) {
+  Fl_Window *parent_win = popup_anchor_->parent;
+  struct wld_window *parent = parent_win->shown() ? fl_wl_xid(parent_win) : NULL;
+  if (!parent || !(parent->xdg_surface || (parent->kind == LAYER && parent->layer_surface)))
+    return false;
+  Fl_Wayland_Screen_Driver *scr_driver = (Fl_Wayland_Screen_Driver*)Fl::screen_driver();
+  new_window->kind = POPUP;
+  new_window->xdg_surface = xdg_wm_base_get_xdg_surface(scr_driver->xdg_wm_base,
+                                                        new_window->wl_surface);
+  xdg_surface_add_listener(new_window->xdg_surface, &xdg_surface_listener, new_window);
+  float f = Fl::screen_scale(parent_win->screen_num());
+  struct xdg_positioner *positioner = xdg_wm_base_create_positioner(scr_driver->xdg_wm_base);
+  xdg_positioner_set_size(positioner, pWindow->w() * f, pWindow->h() * f);
+  xdg_positioner_set_anchor_rect(positioner, popup_anchor_->x * f, popup_anchor_->y * f,
+                                 fl_max(1, int(popup_anchor_->w * f)),
+                                 fl_max(1, int(popup_anchor_->h * f)));
+  xdg_positioner_set_anchor(positioner, XDG_POSITIONER_ANCHOR_BOTTOM_LEFT);
+  xdg_positioner_set_gravity(positioner, XDG_POSITIONER_GRAVITY_BOTTOM_RIGHT);
+  xdg_positioner_set_constraint_adjustment(positioner,
+      XDG_POSITIONER_CONSTRAINT_ADJUSTMENT_SLIDE_X | XDG_POSITIONER_CONSTRAINT_ADJUSTMENT_FLIP_Y |
+      XDG_POSITIONER_CONSTRAINT_ADJUSTMENT_SLIDE_Y);
+  // A layer surface has no xdg_surface: its popups get their parent with get_popup.
+  new_window->xdg_popup = xdg_surface_get_popup(new_window->xdg_surface,
+                                                parent->kind == LAYER ? NULL : parent->xdg_surface,
+                                                positioner);
+  if (parent->kind == LAYER)
+    zwlr_layer_surface_v1_get_popup(parent->layer_surface, new_window->xdg_popup);
+  xdg_positioner_destroy(positioner);
+  struct win_positioner *win_pos = new struct win_positioner;
+  win_pos->window = new_window;
+  win_pos->x = popup_anchor_->x * f;
+  win_pos->y = (popup_anchor_->y + popup_anchor_->h) * f;
+  win_pos->child_popup = NULL;
+  xdg_popup_add_listener(new_window->xdg_popup, &anchored_popup_listener, win_pos);
+  // The grab gives it the keyboard and lets the compositor close it when
+  // the user clicks elsewhere.
+  xdg_popup_grab(new_window->xdg_popup, scr_driver->get_wl_seat(), scr_driver->get_serial());
+  wl_surface_commit(new_window->wl_surface);
+  this->screen_num(parent_win->screen_num());
+  pWindow->border(0);
+  return true;
 }
 
 

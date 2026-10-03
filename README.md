@@ -1,7 +1,8 @@
 # fltk-sys (HeroineOS fork)
 
 This is [fltk-sys 1.5.23](https://crates.io/crates/fltk-sys/1.5.23) from
-[fltk-rs](https://github.com/fltk-rs/fltk-rs) with three additions to FLTK's Wayland backend:
+[fltk-rs](https://github.com/fltk-rs/fltk-rs) with four additions to FLTK's Wayland backend:
+**popups anchored to a widget** (dropdown panels, also from layer-shell panels),
 **transparent windows** (parts of a window can be see-through, with anti-aliased edges),
 **touchscreen input** (FLTK 1.4 ignores Wayland touch events; the first finger now acts
 as the left mouse button, like on X11), and support for the
@@ -10,7 +11,7 @@ widgets, notifications, wallpapers) use to sit on dedicated layers anchored to s
 edges. Upstream FLTK declined it as Wayland-specific
 ([fltk/fltk#593](https://github.com/fltk/fltk/issues/593)), so it lives here.
 
-Everything else is unchanged: same version number, same API plus five functions, so
+Everything else is unchanged: same version number, same API plus six functions, so
 `fltk` from crates.io and other fltk crates build against it as usual. Apps opt in with:
 
 ```toml
@@ -34,10 +35,15 @@ Apps that need layer-shell, transparency or touchscreen input on Wayland should 
 - FLTK: `fl_wl_transparent(win)` (no opaque region) and `fl_wl_clear_rect(x, y, w, h)`
   (clears to fully transparent while drawing; shapes drawn over it blend with what's
   behind the window), in `FL/wayland.H`.
-- cfltk: `Fl_wl_has_layer_shell`, `Fl_Window_wl_layer_window`, `Fl_Window_wl_layer_margins`,
+- FLTK: `fl_wl_popup(win, parent, x, y, w, h)`: before `show()`, makes `win` an xdg_popup
+  of `parent` (a regular or layer-shell window) placed under that rectangle, or above it
+  when there's no room; with a grab, so it gets the keyboard and the compositor closes it
+  on an outside click (`win` then gets `FL_HIDE`). Also fixes resizing a shown popup
+  (FLTK treated it as a toplevel and crashed).
+- cfltk: `Fl_Window_wl_popup`, `Fl_wl_has_layer_shell`, `Fl_Window_wl_layer_window`, `Fl_Window_wl_layer_margins`,
   `Fl_Window_wl_transparent`, `Fl_wl_clear_rect` (no-ops returning 0 without the Wayland
   backend).
-- Rust (`src/window.rs`): bindings for those five functions.
+- Rust (`src/window.rs`): bindings for those six functions.
 - `cfltk/fltk/src/drivers/Wayland/wlr-layer-shell-unstable-v1.xml`, the protocol
   (© 2017 Drew DeVault, see its license header), as wayland-protocols doesn't ship it.
 
