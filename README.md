@@ -36,10 +36,12 @@ Apps that need layer-shell, transparency or touchscreen input on Wayland should 
   (clears to fully transparent while drawing; shapes drawn over it blend with what's
   behind the window), in `FL/wayland.H`.
 - FLTK: `fl_wl_popup(win, parent, x, y, w, h)`: before `show()`, makes `win` an xdg_popup
-  of `parent` (a regular or layer-shell window) placed under that rectangle, or above it
+  of `parent` (a regular or layer-shell window) centered under that rectangle, or above it
   when there's no room; with a grab, so it gets the keyboard and the compositor closes it
   on an outside click (`win` then gets `FL_HIDE`). Also fixes resizing a shown popup
   (FLTK treated it as a toplevel and crashed).
+- FLTK (all backends): tooltips of small areas (buttons, panel items) are centered under
+  them instead of starting at the pointer.
 - cfltk: `Fl_Window_wl_popup`, `Fl_wl_has_layer_shell`, `Fl_Window_wl_layer_window`, `Fl_Window_wl_layer_margins`,
   `Fl_Window_wl_transparent`, `Fl_wl_clear_rect` (no-ops returning 0 without the Wayland
   backend).

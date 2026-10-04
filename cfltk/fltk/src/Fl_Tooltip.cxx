@@ -2,6 +2,8 @@
 // Tooltip source file for the Fast Light Tool Kit (FLTK).
 //
 // Copyright 1998-2024 by Bill Spitzak and others.
+// Modified 2026-10-04 by the HeroineOS project (https://github.com/HeroineOS/fltk-sys):
+// tooltips of small areas are centered under them.
 //
 // This library is free software. Distribution and use rights are outlined in
 // the file "COPYING" which should have been included with this file.  If this
@@ -76,7 +78,7 @@ public:
 
 Fl_Widget* Fl_Tooltip::widget_ = 0;
 static Fl_TooltipBox *window = 0;
-static int currentTooltipY, currentTooltipH;
+static int currentTooltipX, currentTooltipY, currentTooltipW, currentTooltipH;
 
 Fl_Window *Fl_Tooltip::current_window(void)
 {
@@ -96,9 +98,12 @@ void Fl_TooltipBox::layout() {
   if (currentTooltipH > 30) {
     oy = Fl::event_y_root()+13;
   } else {
+    // A small area (a button, a panel item): centered under it.
     oy = currentTooltipY + currentTooltipH+2;
+    ox = currentTooltipX + (currentTooltipW - ww) / 2;
     for (Fl_Widget* p = Fl_Tooltip::current(); p; p = p->window()) {
       oy += p->y();
+      ox += p->x();
     }
   }
   if (Fl::screen_driver()->screen_boundaries_known()) {
@@ -298,7 +303,7 @@ void Fl_Tooltip::enter_area(Fl_Widget* wid, int x,int y,int w,int h, const char*
   Fl::remove_timeout(tooltip_timeout);
   Fl::remove_timeout(recent_timeout);
   // remember it:
-  widget_ = wid; currentTooltipY = y; currentTooltipH = h; tip = t;
+  widget_ = wid; currentTooltipX = x; currentTooltipY = y; currentTooltipW = w; currentTooltipH = h; tip = t;
   // popup the tooltip immediately if it was recently up:
   if (recent_tooltip) {
     if (window) {

@@ -2337,9 +2337,9 @@ void fl_wl_layer_margins(Fl_Window *win, int top, int right, int bottom, int lef
 }
 
 
-/** Makes \p win a popup of \p parent, placed below the rectangle
+/** Makes \p win a popup of \p parent, centered below the rectangle
  (\p x, \p y, \p w, \p h) of \p parent (e.g. the widget that opens it), or
- above it if there's no room below. Call this before \p win is shown, best
+ above it if there's no room below; slid sideways to stay on the screen. Call this before \p win is shown, best
  while handling a mouse button press. The popup takes the keyboard while
  shown, and the compositor closes it when the user clicks elsewhere: \p win
  is then hidden, so it receives \c FL_HIDE. \p parent can be a regular or
@@ -2392,8 +2392,9 @@ bool Fl_Wayland_Window_Driver::make_anchored_popup(struct wld_window *new_window
   xdg_positioner_set_anchor_rect(positioner, popup_anchor_->x * f, popup_anchor_->y * f,
                                  fl_max(1, int(popup_anchor_->w * f)),
                                  fl_max(1, int(popup_anchor_->h * f)));
-  xdg_positioner_set_anchor(positioner, XDG_POSITIONER_ANCHOR_BOTTOM_LEFT);
-  xdg_positioner_set_gravity(positioner, XDG_POSITIONER_GRAVITY_BOTTOM_RIGHT);
+  // Centered under the rectangle (slid sideways near screen edges).
+  xdg_positioner_set_anchor(positioner, XDG_POSITIONER_ANCHOR_BOTTOM);
+  xdg_positioner_set_gravity(positioner, XDG_POSITIONER_GRAVITY_BOTTOM);
   xdg_positioner_set_constraint_adjustment(positioner,
       XDG_POSITIONER_CONSTRAINT_ADJUSTMENT_SLIDE_X | XDG_POSITIONER_CONSTRAINT_ADJUSTMENT_FLIP_Y |
       XDG_POSITIONER_CONSTRAINT_ADJUSTMENT_SLIDE_Y);
