@@ -99,6 +99,10 @@ void Fl_wl_clear_rect(int x, int y, int w, int h);
 void Fl_Window_wl_popup(Fl_Window *self, Fl_Window *parent, int x, int y, int w,
                         int h);
 
+int Fl_Window_wl_popup_position(Fl_Window *self, int *x, int *y);
+
+Fl_Window *Fl_Window_event_window(void);
+
 WIDGET_DECLARE(Fl_Single_Window)
 
 GROUP_DECLARE(Fl_Single_Window)

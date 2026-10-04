@@ -39,13 +39,15 @@ Apps that need layer-shell, transparency or touchscreen input on Wayland should 
   of `parent` (a regular or layer-shell window) centered under that rectangle, or above it
   when there's no room; with a grab, so it gets the keyboard and the compositor closes it
   on an outside click (`win` then gets `FL_HIDE`). Also fixes resizing a shown popup
-  (FLTK treated it as a toplevel and crashed).
+  (FLTK treated it as a toplevel and crashed). `fl_wl_popup_position(win, &x, &y)` tells
+  where the compositor put it, relative to `parent`.
 - FLTK (all backends): tooltips of small areas (buttons, panel items) are centered under
   them instead of starting at the pointer.
-- cfltk: `Fl_Window_wl_popup`, `Fl_wl_has_layer_shell`, `Fl_Window_wl_layer_window`, `Fl_Window_wl_layer_margins`,
+- cfltk: `Fl_Window_wl_popup`, `Fl_Window_wl_popup_position`, `Fl_wl_has_layer_shell`, `Fl_Window_wl_layer_window`, `Fl_Window_wl_layer_margins`,
   `Fl_Window_wl_transparent`, `Fl_wl_clear_rect` (no-ops returning 0 without the Wayland
-  backend).
-- Rust (`src/window.rs`): bindings for those six functions.
+  backend); `Fl_Window_event_window` (the window the last mouse event was in; a drag that
+  leaves a popup on Wayland continues in the window under the pointer).
+- Rust (`src/window.rs`): bindings for those eight functions.
 - `cfltk/fltk/src/drivers/Wayland/wlr-layer-shell-unstable-v1.xml`, the protocol
   (© 2017 Drew DeVault, see its license header), as wayland-protocols doesn't ship it.
 

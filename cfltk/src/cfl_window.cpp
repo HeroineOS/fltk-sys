@@ -415,6 +415,26 @@ void Fl_Window_wl_popup(Fl_Window *self, Fl_Window *parent, int x, int y, int w,
 #endif
 }
 
+// The window the last mouse event happened in (Fl::event_x() is relative
+// to it): during a drag that leaves the pushed widget's window, another
+// window of the app (on Wayland).
+extern Fl_Window *fl_xmousewin;
+
+Fl_Window *Fl_Window_event_window(void) {
+    return fl_xmousewin;
+}
+
+int Fl_Window_wl_popup_position(Fl_Window *self, int *x, int *y) {
+#if defined(FLTK_USE_WAYLAND)
+    int ret = 0;
+    LOCK(ret = fl_wl_popup_position(self, x, y));
+    return ret;
+#else
+    (void)self, (void)x, (void)y;
+    return 0;
+#endif
+}
+
 void Fl_wl_clear_rect(int x, int y, int w, int h) {
 #if defined(FLTK_USE_WAYLAND)
     fl_wl_clear_rect(x, y, w, h);

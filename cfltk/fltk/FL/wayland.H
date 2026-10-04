@@ -84,6 +84,7 @@ extern FL_EXPORT void fl_wl_transparent(Fl_Window *win);
 extern FL_EXPORT void fl_wl_clear_rect(int x, int y, int w, int h);
 extern FL_EXPORT void fl_wl_popup(Fl_Window *win, Fl_Window *parent, int x, int y, int w,
                                   int h);
+extern FL_EXPORT int fl_wl_popup_position(Fl_Window *win, int *x, int *y);
 
 #ifndef FL_DOXYGEN
 

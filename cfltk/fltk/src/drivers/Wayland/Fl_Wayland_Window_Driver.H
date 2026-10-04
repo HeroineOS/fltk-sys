@@ -68,6 +68,7 @@ private:
   struct popup_anchor_type { // set by fl_wl_popup()
     Fl_Window *parent;
     int x, y, w, h;
+    int px, py; // where the compositor put it, relative to parent (-1: not yet)
   } *popup_anchor_;
   struct layer_data_type { // set by fl_wl_layer_window(), used when the window is shown
     int layer, anchor, exclusive_zone, keyboard, screen;
@@ -166,6 +167,8 @@ public:
   void transparent() { transparent_ = true; }
   // see fl_wl_popup()
   void popup_anchor(Fl_Window *parent, int x, int y, int w, int h);
+  bool popup_position(int *x, int *y);
+  void popup_configured(int x, int y) { if (popup_anchor_) { popup_anchor_->px = x; popup_anchor_->py = y; } }
   bool make_anchored_popup(struct wld_window *);
 };
 

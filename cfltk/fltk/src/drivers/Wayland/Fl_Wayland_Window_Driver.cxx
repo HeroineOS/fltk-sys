@@ -2360,13 +2360,36 @@ void Fl_Wayland_Window_Driver::popup_anchor(Fl_Window *parent, int x, int y, int
   popup_anchor_->y = y;
   popup_anchor_->w = w;
   popup_anchor_->h = h;
+  popup_anchor_->px = popup_anchor_->py = -1;
+}
+
+
+bool Fl_Wayland_Window_Driver::popup_position(int *x, int *y) {
+  if (!popup_anchor_ || popup_anchor_->px < 0 || !pWindow->shown()) return false;
+  *x = popup_anchor_->px;
+  *y = popup_anchor_->py;
+  return true;
+}
+
+
+/** Gets where the compositor put popup \p win (made with fl_wl_popup()),
+ relative to its parent window, into \p x and \p y. Returns 0 if it isn't
+ known (not shown yet, not a popup, not running Wayland), 1 otherwise.
+ */
+int fl_wl_popup_position(Fl_Window *win, int *x, int *y) {
+  if (!fl_wl_display() || !win->shown()) return 0;
+  return Fl_Wayland_Window_Driver::driver(win)->popup_position(x, y) ? 1 : 0;
 }
 
 
 static void anchored_popup_configure(void *data, struct xdg_popup *xdg_popup, int32_t x,
                                      int32_t y, int32_t width, int32_t height) {
   struct win_positioner *win_pos = (struct win_positioner *)data;
-  Fl_Window_Driver::driver(win_pos->window->fl_win)->wait_for_expose_value = 0;
+  Fl_Window *win = win_pos->window->fl_win;
+  Fl_Window_Driver::driver(win)->wait_for_expose_value = 0;
+  // Remembered for fl_wl_popup_position() (in FLTK units).
+  float f = Fl::screen_scale(win->screen_num());
+  Fl_Wayland_Window_Driver::driver(win)->popup_configured(int(x / f), int(y / f));
 }
 
 
