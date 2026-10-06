@@ -77,10 +77,14 @@ get_setting_sync(DBusConnection *const connection,
 
 	dbus_error_init(&error);
 
+	/* HeroineOS: a short timeout. With D-Bus's default (25 s) a desktop
+	 * portal that hangs (a backend that can't start) froze every app's
+	 * startup for up to a minute; a settings read answers in ms or not
+	 * at all. */
 	reply = dbus_connection_send_with_reply_and_block(
 			     connection,
 			     message,
-			     DBUS_TIMEOUT_USE_DEFAULT,
+			     300,
 			     &error);
 
 	dbus_message_unref(message);
@@ -118,8 +122,33 @@ parse_type(DBusMessage *const reply,
 	return true;
 }
 
+/* HeroineOS: asked once per process (FLTK and the decoration plugin
+ * both ask), and not at all when the environment says. */
+static int cursor_cached = 0;
+static char *cursor_cached_theme = NULL;
+static int cursor_cached_size = 0;
+static bool cursor_cached_ok = false;
+
+static bool
+libdecor_get_cursor_settings_uncached(char **theme, int *size);
+
 bool
 libdecor_get_cursor_settings(char **theme, int *size)
+{
+	if (!cursor_cached) {
+		cursor_cached = 1;
+		if (getenv("XCURSOR_THEME") && getenv("XCURSOR_SIZE"))
+			cursor_cached_ok = get_cursor_settings_from_env(&cursor_cached_theme, &cursor_cached_size);
+		else
+			cursor_cached_ok = libdecor_get_cursor_settings_uncached(&cursor_cached_theme, &cursor_cached_size);
+	}
+	*theme = cursor_cached_theme ? strdup(cursor_cached_theme) : NULL;
+	*size = cursor_cached_size;
+	return cursor_cached_ok;
+}
+
+static bool
+libdecor_get_cursor_settings_uncached(char **theme, int *size)
 {
 	static const char name[] = "org.gnome.desktop.interface";
 	static const char key_theme[] = "cursor-theme";
