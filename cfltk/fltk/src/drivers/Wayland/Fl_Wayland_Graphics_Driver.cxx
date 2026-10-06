@@ -119,10 +119,20 @@ struct Fl_Wayland_Graphics_Driver::wld_buffer *
 
 
 // used to support both normal and progressive drawing and for top-level GL windows
+// HeroineOS: called on every frame callback (the compositor has shown a
+// frame: the right moment to step animations, so they're paced by the
+// display's refresh).
+static void (*frame_hook)(void) = NULL;
+
+void fl_wl_frame_hook(void (*hook)(void)) {
+  frame_hook = hook;
+}
+
 static void surface_frame_done(void *data, struct wl_callback *cb, uint32_t time) {
   struct wld_window *window = (struct wld_window *)data;
   wl_callback_destroy(cb);
   window->frame_cb = NULL;
+  if (frame_hook) frame_hook();
   if (window->buffer && window->buffer->draw_buffer_needs_commit) {
     Fl_Wayland_Graphics_Driver::buffer_commit(window);
   }

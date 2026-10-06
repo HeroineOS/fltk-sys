@@ -103,6 +103,8 @@ int Fl_Window_wl_popup_position(Fl_Window *self, int *x, int *y);
 
 Fl_Window *Fl_Window_event_window(void);
 
+void Fl_wl_frame_hook(void (*hook)(void));
+
 WIDGET_DECLARE(Fl_Single_Window)
 
 GROUP_DECLARE(Fl_Single_Window)

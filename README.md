@@ -41,13 +41,18 @@ Apps that need layer-shell, transparency or touchscreen input on Wayland should 
   on an outside click (`win` then gets `FL_HIDE`). Also fixes resizing a shown popup
   (FLTK treated it as a toplevel and crashed). `fl_wl_popup_position(win, &x, &y)` tells
   where the compositor put it, relative to `parent`.
+- FLTK: `fl_wl_frame_hook(fn)`: `fn` runs on every frame callback (the compositor has
+  shown a frame), for pacing animations by the display's refresh.
+- libdecor: desktop-portal settings reads time out after 300 ms instead of D-Bus's 25 s
+  (a hung portal stalled every app's startup), and the cursor settings are read once per
+  process, not at all when `XCURSOR_THEME` and `XCURSOR_SIZE` are set.
 - FLTK (all backends): tooltips of small areas (buttons, panel items) are centered under
   them instead of starting at the pointer.
 - cfltk: `Fl_Window_wl_popup`, `Fl_Window_wl_popup_position`, `Fl_wl_has_layer_shell`, `Fl_Window_wl_layer_window`, `Fl_Window_wl_layer_margins`,
   `Fl_Window_wl_transparent`, `Fl_wl_clear_rect` (no-ops returning 0 without the Wayland
   backend); `Fl_Window_event_window` (the window the last mouse event was in; a drag that
-  leaves a popup on Wayland continues in the window under the pointer).
-- Rust (`src/window.rs`): bindings for those eight functions.
+  leaves a popup on Wayland continues in the window under the pointer); `Fl_wl_frame_hook`.
+- Rust (`src/window.rs`): bindings for those nine functions.
 - `cfltk/fltk/src/drivers/Wayland/wlr-layer-shell-unstable-v1.xml`, the protocol
   (© 2017 Drew DeVault, see its license header), as wayland-protocols doesn't ship it.
 

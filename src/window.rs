@@ -819,6 +819,9 @@ extern "C" {
     pub fn Fl_Window_event_window() -> *mut Fl_Window;
 }
 extern "C" {
+    pub fn Fl_wl_frame_hook(hook: ::core::option::Option<unsafe extern "C" fn()>);
+}
+extern "C" {
     pub fn Fl_wl_clear_rect(
         x: ::core::ffi::c_int,
         y: ::core::ffi::c_int,

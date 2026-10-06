@@ -435,6 +435,16 @@ int Fl_Window_wl_popup_position(Fl_Window *self, int *x, int *y) {
 #endif
 }
 
+// Called after each frame the compositor shows (Wayland): for pacing
+// animations by the display. Does nothing elsewhere.
+void Fl_wl_frame_hook(void (*hook)(void)) {
+#if defined(FLTK_USE_WAYLAND)
+    fl_wl_frame_hook(hook);
+#else
+    (void)hook;
+#endif
+}
+
 void Fl_wl_clear_rect(int x, int y, int w, int h) {
 #if defined(FLTK_USE_WAYLAND)
     fl_wl_clear_rect(x, y, w, h);
