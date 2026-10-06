@@ -75,6 +75,9 @@ private:
     int margin_top, margin_right, margin_bottom, margin_left;
     char *name_space;
   } *layer_data_;
+  char *exported_parent_; // set by fl_wl_parent_exported(), used when the window is shown
+  struct zxdg_imported_v2 *imported_parent_;
+  void set_imported_parent(struct wld_window *w);
 public:
   inline Fl_Cursor standard_cursor() { return standard_cursor_; };
   bool in_handle_configure; // distinguish OS and user window resize
@@ -158,6 +161,7 @@ public:
   bool process_menu_or_tooltip(struct wld_window *);
   static Fl_Window *previous_floatingtitle; // to support floating menuwindow w/ title
   void allow_expand_outside_parent() FL_OVERRIDE { can_expand_outside_parent_ = true; }
+  void parent_exported(const char *handle);
   // wlr-layer-shell support, see fl_wl_layer_window()
   void layer_window(int layer, int anchor, int exclusive_zone, int keyboard, int screen,
                     const char *name_space);

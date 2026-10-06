@@ -809,6 +809,18 @@ if(UNIX AND FLTK_BACKEND_WAYLAND)
   list(APPEND STATIC_FILES "wlr-layer-shell-protocol.c")
   list(APPEND SHARED_FILES "wlr-layer-shell-protocol.c")
 
+  # xdg-foreign (bundled too): windows of other programs as parents.
+  set(INFILE ${FLTK_SOURCE_DIR}/src/drivers/Wayland/xdg-foreign-unstable-v2.xml)
+  add_custom_command(
+    OUTPUT xdg-foreign-protocol.c xdg-foreign-client-protocol.h
+    COMMAND wayland-scanner private-code  ${INFILE} xdg-foreign-protocol.c
+    COMMAND wayland-scanner client-header ${INFILE} xdg-foreign-client-protocol.h
+    DEPENDS ${INFILE}
+    VERBATIM
+  )
+  list(APPEND STATIC_FILES "xdg-foreign-protocol.c")
+  list(APPEND SHARED_FILES "xdg-foreign-protocol.c")
+
   if(STOP_REQUIRED)
     message(FATAL_ERROR "*** Terminating: one or more required file(s) were not found. ***")
   endif()

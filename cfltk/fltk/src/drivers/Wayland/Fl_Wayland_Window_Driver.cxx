@@ -29,6 +29,7 @@
 // the protocol names an argument 'namespace', a C++ keyword
 #define namespace name_space
 #include "wlr-layer-shell-client-protocol.h"
+#include "xdg-foreign-client-protocol.h"
 #undef namespace
 #include <pango/pangocairo.h>
 #include <FL/Fl_Overlay_Window.H>
@@ -80,6 +81,8 @@ Fl_Wayland_Window_Driver::Fl_Wayland_Window_Driver(Fl_Window *win) : Fl_Window_D
   is_popup_window_ = false;
   can_expand_outside_parent_ = false;
   layer_data_ = NULL;
+  exported_parent_ = NULL;
+  imported_parent_ = NULL;
   transparent_ = false;
   popup_anchor_ = NULL;
 }
@@ -127,6 +130,8 @@ Fl_Wayland_Window_Driver::~Fl_Wayland_Window_Driver()
     free(layer_data_->name_space);
     delete layer_data_;
   }
+  if (imported_parent_) zxdg_imported_v2_destroy(imported_parent_);
+  free(exported_parent_);
 }
 
 
@@ -468,6 +473,10 @@ void Fl_Wayland_Window_Driver::hide() {
   }
   Fl_X* ip = Fl_X::flx(pWindow);
   if (hide_common()) return;
+  if (imported_parent_) {
+    zxdg_imported_v2_destroy(imported_parent_);
+    imported_parent_ = NULL;
+  }
   if (ip->region) {
     Fl_Graphics_Driver::default_driver().XDestroyRegion(ip->region);
     ip->region = 0;
@@ -1536,6 +1545,7 @@ void Fl_Wayland_Window_Driver::makeWindow()
       libdecor_frame_unset_capabilities(new_window->frame, LIBDECOR_ACTION_RESIZE);
       libdecor_frame_unset_capabilities(new_window->frame, LIBDECOR_ACTION_FULLSCREEN);
     }
+    set_imported_parent(new_window); // before the first commit, when compositors place it
     libdecor_frame_map(new_window->frame);
     float f = Fl::screen_scale(pWindow->screen_num());
     new_window->floating_width = pWindow->w() * f;
@@ -1576,6 +1586,7 @@ void Fl_Wayland_Window_Driver::makeWindow()
     // as for decorated windows, lets compositors identify the application
     xdg_toplevel_set_app_id(new_window->xdg_toplevel,
                             pWindow->xclass() ? pWindow->xclass() : get_prog_name());
+    set_imported_parent(new_window);
     wl_surface_commit(new_window->wl_surface);
     pWindow->border(0);
   }
@@ -2322,6 +2333,36 @@ void fl_wl_layer_window(Fl_Window *win, enum Fl_Wl_Layer layer, int anchor, int 
   if (!fl_wl_display() || win->parent() || win->shown()) return;
   Fl_Wayland_Window_Driver::driver(win)->layer_window(layer, anchor, exclusive_zone, keyboard,
                                                       screen, name_space);
+}
+
+
+/** Makes the window of another program, exported with xdg-foreign (as by
+ a desktop portal's "wayland:HANDLE" parent window), the parent of \p win:
+ compositors keep \p win above it and typically float and center it over it,
+ as a dialog of that program. Call this before \p win is shown, on a top-level
+ window. Does nothing if the compositor lacks xdg-foreign v2 or FLTK doesn't
+ run its Wayland backend.
+ \param win    a top-level window, not shown yet
+ \param handle the handle the other program exported (without "wayland:")
+ */
+void fl_wl_parent_exported(Fl_Window *win, const char *handle) {
+  if (!fl_wl_display()) fl_open_display();
+  if (!fl_wl_display() || !handle || win->parent() || win->shown()) return;
+  Fl_Wayland_Window_Driver::driver(win)->parent_exported(handle);
+}
+
+
+void Fl_Wayland_Window_Driver::parent_exported(const char *handle) {
+  free(exported_parent_);
+  exported_parent_ = strdup(handle);
+}
+
+
+void Fl_Wayland_Window_Driver::set_imported_parent(struct wld_window *w) {
+  Fl_Wayland_Screen_Driver *scr_driver = (Fl_Wayland_Screen_Driver*)Fl::screen_driver();
+  if (!exported_parent_ || !scr_driver->xdg_importer || imported_parent_) return;
+  imported_parent_ = zxdg_importer_v2_import_toplevel(scr_driver->xdg_importer, exported_parent_);
+  zxdg_imported_v2_set_parent_of(imported_parent_, w->wl_surface);
 }
 
 

@@ -45,6 +45,7 @@
 // the protocol names an argument 'namespace', a C++ keyword
 #define namespace name_space
 #include "wlr-layer-shell-client-protocol.h"
+#include "xdg-foreign-client-protocol.h"
 #undef namespace
 #include <assert.h>
 #include <sys/mman.h>
@@ -1434,6 +1435,10 @@ static void registry_handle_global(void *user_data, struct wl_registry *wl_regis
     // version 4 adds on-demand keyboard focus, which is used if available
     scr_driver->layer_shell = (struct zwlr_layer_shell_v1 *)
       wl_registry_bind(wl_registry, id, &zwlr_layer_shell_v1_interface, version < 4 ? version : 4);
+
+  } else if (strcmp(interface, zxdg_importer_v2_interface.name) == 0) {
+    scr_driver->xdg_importer = (struct zxdg_importer_v2 *)
+      wl_registry_bind(wl_registry, id, &zxdg_importer_v2_interface, 1);
   }
 }
 
@@ -1502,6 +1507,7 @@ Fl_Wayland_Screen_Driver::Fl_Wayland_Screen_Driver() : Fl_Unix_Screen_Driver() {
   seat = NULL;
   text_input_base = NULL;
   layer_shell = NULL;
+  xdg_importer = NULL;
   reset_cursor();
   wl_registry = NULL;
 }
@@ -1575,6 +1581,10 @@ void Fl_Wayland_Screen_Driver::close_display() {
   if (layer_shell) {
     zwlr_layer_shell_v1_destroy(layer_shell);
     layer_shell = NULL;
+  }
+  if (xdg_importer) {
+    zxdg_importer_v2_destroy(xdg_importer);
+    xdg_importer = NULL;
   }
   while (wl_list_length(&outputs) > 0) {
     Fl_Wayland_Screen_Driver::output *output;

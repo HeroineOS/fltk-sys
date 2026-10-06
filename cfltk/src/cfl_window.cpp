@@ -445,6 +445,17 @@ void Fl_wl_frame_hook(void (*hook)(void)) {
 #endif
 }
 
+// Another program's window (exported with xdg-foreign) as the parent
+// (Wayland; before showing). Does nothing elsewhere.
+void Fl_Window_wl_parent_exported(Fl_Window *self, const char *handle) {
+#if defined(FLTK_USE_WAYLAND)
+    fl_wl_parent_exported(self, handle);
+#else
+    (void)self;
+    (void)handle;
+#endif
+}
+
 void Fl_wl_clear_rect(int x, int y, int w, int h) {
 #if defined(FLTK_USE_WAYLAND)
     fl_wl_clear_rect(x, y, w, h);
