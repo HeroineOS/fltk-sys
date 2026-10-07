@@ -18,6 +18,7 @@
 #include "Fl_Wayland_Screen_Driver.H"
 #include "Fl_Wayland_Window_Driver.H"
 #include <FL/Fl_Image_Surface.H>
+#include <FL/platform.H> // fl_wl_xid()
 #include <sys/mman.h>
 #include <unistd.h> // for close()
 #include <errno.h>
