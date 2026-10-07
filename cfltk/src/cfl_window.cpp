@@ -465,6 +465,17 @@ int Fl_wl_frame_pending(void) {
 #endif
 }
 
+// A handle other programs can parent their windows to (Wayland,
+// xdg-foreign); NULL elsewhere.
+const char *Fl_Window_wl_exported_handle(Fl_Window *self) {
+#if defined(FLTK_USE_WAYLAND)
+    return fl_wl_exported_handle(self);
+#else
+    (void)self;
+    return NULL;
+#endif
+}
+
 void Fl_wl_clear_rect(int x, int y, int w, int h) {
 #if defined(FLTK_USE_WAYLAND)
     fl_wl_clear_rect(x, y, w, h);

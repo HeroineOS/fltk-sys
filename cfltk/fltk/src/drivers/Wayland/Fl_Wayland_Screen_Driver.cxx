@@ -1439,6 +1439,9 @@ static void registry_handle_global(void *user_data, struct wl_registry *wl_regis
   } else if (strcmp(interface, zxdg_importer_v2_interface.name) == 0) {
     scr_driver->xdg_importer = (struct zxdg_importer_v2 *)
       wl_registry_bind(wl_registry, id, &zxdg_importer_v2_interface, 1);
+  } else if (strcmp(interface, zxdg_exporter_v2_interface.name) == 0) {
+    scr_driver->xdg_exporter = (struct zxdg_exporter_v2 *)
+      wl_registry_bind(wl_registry, id, &zxdg_exporter_v2_interface, 1);
   }
 }
 
@@ -1508,6 +1511,7 @@ Fl_Wayland_Screen_Driver::Fl_Wayland_Screen_Driver() : Fl_Unix_Screen_Driver() {
   text_input_base = NULL;
   layer_shell = NULL;
   xdg_importer = NULL;
+  xdg_exporter = NULL;
   reset_cursor();
   wl_registry = NULL;
 }
@@ -1585,6 +1589,10 @@ void Fl_Wayland_Screen_Driver::close_display() {
   if (xdg_importer) {
     zxdg_importer_v2_destroy(xdg_importer);
     xdg_importer = NULL;
+  }
+  if (xdg_exporter) {
+    zxdg_exporter_v2_destroy(xdg_exporter);
+    xdg_exporter = NULL;
   }
   while (wl_list_length(&outputs) > 0) {
     Fl_Wayland_Screen_Driver::output *output;

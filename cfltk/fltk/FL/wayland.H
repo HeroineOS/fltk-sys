@@ -88,6 +88,7 @@ extern FL_EXPORT int fl_wl_popup_position(Fl_Window *win, int *x, int *y);
 extern FL_EXPORT void fl_wl_frame_hook(void (*hook)(void));
 extern FL_EXPORT int fl_wl_frame_pending();
 extern FL_EXPORT void fl_wl_parent_exported(Fl_Window *win, const char *handle);
+extern FL_EXPORT const char *fl_wl_exported_handle(Fl_Window *win);
 
 #ifndef FL_DOXYGEN
 

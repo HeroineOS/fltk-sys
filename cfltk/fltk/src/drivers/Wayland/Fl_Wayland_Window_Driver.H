@@ -77,6 +77,11 @@ private:
   } *layer_data_;
   char *exported_parent_; // set by fl_wl_parent_exported(), used when the window is shown
   struct zxdg_imported_v2 *imported_parent_;
+  struct zxdg_exported_v2 *exported_;
+  char *exported_handle_;
+public:
+  const char *exported_handle();
+private:
   void set_imported_parent(struct wld_window *w);
 public:
   inline Fl_Cursor standard_cursor() { return standard_cursor_; };

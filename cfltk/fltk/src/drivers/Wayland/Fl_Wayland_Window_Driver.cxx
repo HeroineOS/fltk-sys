@@ -83,6 +83,8 @@ Fl_Wayland_Window_Driver::Fl_Wayland_Window_Driver(Fl_Window *win) : Fl_Window_D
   layer_data_ = NULL;
   exported_parent_ = NULL;
   imported_parent_ = NULL;
+  exported_ = NULL;
+  exported_handle_ = NULL;
   transparent_ = false;
   popup_anchor_ = NULL;
 }
@@ -132,6 +134,8 @@ Fl_Wayland_Window_Driver::~Fl_Wayland_Window_Driver()
   }
   if (imported_parent_) zxdg_imported_v2_destroy(imported_parent_);
   free(exported_parent_);
+  if (exported_) zxdg_exported_v2_destroy(exported_);
+  free(exported_handle_);
 }
 
 
@@ -477,6 +481,12 @@ void Fl_Wayland_Window_Driver::hide() {
     zxdg_imported_v2_destroy(imported_parent_);
     imported_parent_ = NULL;
   }
+  if (exported_) {
+    zxdg_exported_v2_destroy(exported_);
+    exported_ = NULL;
+  }
+  free(exported_handle_);
+  exported_handle_ = NULL;
   if (ip->region) {
     Fl_Graphics_Driver::default_driver().XDestroyRegion(ip->region);
     ip->region = 0;
@@ -2349,6 +2359,38 @@ void fl_wl_parent_exported(Fl_Window *win, const char *handle) {
   if (!fl_wl_display()) fl_open_display();
   if (!fl_wl_display() || !handle || win->parent() || win->shown()) return;
   Fl_Wayland_Window_Driver::driver(win)->parent_exported(handle);
+}
+
+
+static void exported_handle_cb(void *data, struct zxdg_exported_v2 *, const char *handle) {
+  char **dest = (char **)data;
+  free(*dest);
+  *dest = strdup(handle);
+}
+
+static const struct zxdg_exported_v2_listener exported_listener = { exported_handle_cb };
+
+const char *Fl_Wayland_Window_Driver::exported_handle() {
+  Fl_Wayland_Screen_Driver *scr_driver = (Fl_Wayland_Screen_Driver*)Fl::screen_driver();
+  struct wld_window *xid = fl_wl_xid(pWindow);
+  if (!xid || !scr_driver->xdg_exporter || pWindow->parent()) return NULL;
+  if (!exported_) {
+    exported_ = zxdg_exporter_v2_export_toplevel(scr_driver->xdg_exporter, xid->wl_surface);
+    zxdg_exported_v2_add_listener(exported_, &exported_listener, &exported_handle_);
+    wl_display_roundtrip(fl_wl_display());
+  }
+  return exported_handle_;
+}
+
+
+/** A handle another program can make the parent of its windows with
+ (xdg-foreign v2; e.g. given to a desktop portal as "wayland:HANDLE", so its
+ dialog floats over \p win). NULL if \p win isn't shown, isn't a top-level
+ window, or the compositor lacks xdg-foreign. Valid until \p win is hidden.
+ */
+const char *fl_wl_exported_handle(Fl_Window *win) {
+  if (!fl_wl_display() || !win->shown()) return NULL;
+  return Fl_Wayland_Window_Driver::driver(win)->exported_handle();
 }
 
 

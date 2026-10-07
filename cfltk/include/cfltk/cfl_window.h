@@ -109,6 +109,8 @@ int Fl_wl_frame_pending(void);
 
 void Fl_Window_wl_parent_exported(Fl_Window *self, const char *handle);
 
+const char *Fl_Window_wl_exported_handle(Fl_Window *self);
+
 WIDGET_DECLARE(Fl_Single_Window)
 
 GROUP_DECLARE(Fl_Single_Window)

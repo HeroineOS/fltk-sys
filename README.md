@@ -45,6 +45,9 @@ Apps that need layer-shell, transparency or touchscreen input on Wayland should 
   shown a frame), for pacing animations by the display's refresh.
 - FLTK: `fl_wl_frame_pending()`: whether a window's committed frame is still waiting for
   the compositor to show it (FLTK commits no new frame for it meanwhile).
+- FLTK: `fl_wl_exported_handle(win)`: a handle (xdg-foreign v2) other programs can make
+  the parent of their windows, e.g. passed to a desktop portal as `wayland:HANDLE` so its
+  file dialog floats over `win`.
 - FLTK: `fl_wl_parent_exported(win, handle)` (Rust: `Fl_Window_wl_parent_exported`):
   another program's window, exported with xdg-foreign v2 (a desktop portal's
   `wayland:HANDLE`), becomes the parent of `win`, set before its first commit so

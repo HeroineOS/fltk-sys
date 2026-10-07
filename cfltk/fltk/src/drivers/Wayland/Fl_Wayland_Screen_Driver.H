@@ -114,6 +114,7 @@ public:
   struct zwp_text_input_manager_v3 *text_input_base;
   struct zwlr_layer_shell_v1 *layer_shell; // NULL if the compositor lacks wlr-layer-shell
   struct zxdg_importer_v2 *xdg_importer; // NULL if the compositor lacks xdg-foreign
+  struct zxdg_exporter_v2 *xdg_exporter;
 
 // constructor
   Fl_Wayland_Screen_Driver();

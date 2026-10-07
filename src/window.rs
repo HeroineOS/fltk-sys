@@ -825,6 +825,9 @@ extern "C" {
     pub fn Fl_wl_frame_pending() -> ::core::ffi::c_int;
 }
 extern "C" {
+    pub fn Fl_Window_wl_exported_handle(self_: *mut Fl_Window) -> *const ::core::ffi::c_char;
+}
+extern "C" {
     pub fn Fl_Window_wl_parent_exported(self_: *mut Fl_Window, handle: *const ::core::ffi::c_char);
 }
 extern "C" {
