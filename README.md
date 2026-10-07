@@ -43,6 +43,8 @@ Apps that need layer-shell, transparency or touchscreen input on Wayland should 
   where the compositor put it, relative to `parent`.
 - FLTK: `fl_wl_frame_hook(fn)`: `fn` runs on every frame callback (the compositor has
   shown a frame), for pacing animations by the display's refresh.
+- FLTK: `fl_wl_frame_pending()`: whether a window's committed frame is still waiting for
+  the compositor to show it (FLTK commits no new frame for it meanwhile).
 - FLTK: `fl_wl_parent_exported(win, handle)` (Rust: `Fl_Window_wl_parent_exported`):
   another program's window, exported with xdg-foreign v2 (a desktop portal's
   `wayland:HANDLE`), becomes the parent of `win`, set before its first commit so

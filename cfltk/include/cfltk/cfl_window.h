@@ -105,6 +105,8 @@ Fl_Window *Fl_Window_event_window(void);
 
 void Fl_wl_frame_hook(void (*hook)(void));
 
+int Fl_wl_frame_pending(void);
+
 void Fl_Window_wl_parent_exported(Fl_Window *self, const char *handle);
 
 WIDGET_DECLARE(Fl_Single_Window)

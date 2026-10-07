@@ -124,6 +124,18 @@ struct Fl_Wayland_Graphics_Driver::wld_buffer *
 // display's refresh).
 static void (*frame_hook)(void) = NULL;
 
+/** Whether a shown window has a frame on its way to the screen: committed,
+ and the compositor hasn't said it was shown yet. FLTK commits no new frame
+ for that window meanwhile, so animations should wait rather than move on.
+ */
+int fl_wl_frame_pending() {
+  for (Fl_Window *w = Fl::first_window(); w; w = Fl::next_window(w)) {
+    struct wld_window *xid = fl_wl_xid(w);
+    if (xid && xid->frame_cb) return 1;
+  }
+  return 0;
+}
+
 void fl_wl_frame_hook(void (*hook)(void)) {
   frame_hook = hook;
 }

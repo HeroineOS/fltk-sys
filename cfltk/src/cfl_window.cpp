@@ -456,6 +456,15 @@ void Fl_Window_wl_parent_exported(Fl_Window *self, const char *handle) {
 #endif
 }
 
+// Whether a window's frame is waiting for the compositor (Wayland).
+int Fl_wl_frame_pending(void) {
+#if defined(FLTK_USE_WAYLAND)
+    return fl_wl_frame_pending();
+#else
+    return 0;
+#endif
+}
+
 void Fl_wl_clear_rect(int x, int y, int w, int h) {
 #if defined(FLTK_USE_WAYLAND)
     fl_wl_clear_rect(x, y, w, h);
